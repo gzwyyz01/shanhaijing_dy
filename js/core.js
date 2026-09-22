@@ -68,6 +68,7 @@ var TECH_DEF = {
   yingzaojing: { title: '营造经', desc: '营室造屋之法', prices: { xueshi: 13000 }, req: 'suanjing' },
   zhuqijing:   { title: '铸器经', desc: '铸铜炼铁，神器初成', prices: { xueshi: 22000 }, req: ['jinjing', 'yingzaojing'] }
 };
+
 var CRAFT_ORDER = ['wood', 'wuliang', 'shiban', 'tongban', 'xuantie'];
 var CRAFT_DEF = {
   wood:    { title: '木料', desc: '精炼灵禾为木（100 灵禾 → 1 木料）', unlock: 'start', need: null, prices: { linghe: 100 } },
