@@ -1,4 +1,5 @@
 'use strict';
+
 /* =====================================================================
  * 极简零依赖静态文件服务器（替代 nginx，供抖音云托管使用）
  *  - 抖音云构建环境无法访问 DockerHub，故不用 nginx:alpine
@@ -10,7 +11,8 @@ var http = require('http');
 var fs = require('fs');
 var path = require('path');
 
-var root = '/opt/application';
+// 静态资源根目录：使用 server.js 所在目录（模板/自定义 Dockerfile 的拷贝位置可能不同，自适应）
+var root = __dirname;
 var mime = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
