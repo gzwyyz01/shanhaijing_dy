@@ -26,6 +26,10 @@ var SHUI = (function () {
   var devMode = false;
   var lastLogLen = -1;
   var dirty = true;
+  /* 侧边栏复访（必接能力）状态 */
+  var sidebarAvail = false;                 // 宿主是否支持跳转侧边栏（tt.checkScene）
+  var SIDEBAR_CLAIM_KEY = 'shj_sidebar_claim_date';
+  var SIDEBAR_GIFT = { linghe: 500, wood: 10 };  // 每日礼包内容
 
   var C = {
     bg: '#0e1420', panel: '#17202f', panel2: '#1d2738', border: '#2a3950',
@@ -128,6 +132,16 @@ var SHUI = (function () {
     var s = SHCore.DATA.SEASONS[G.season];
     var modTxt = App.isTech('lifa') ? '（灵禾 ×' + s.mod + '）' : '';
     text('第 ' + G.year + ' 年 · ' + s.name + ' · 第 ' + G.day + ' 天 ' + modTxt, 12, L.top + 30, 12, C.dim);
+    // 侧边栏复访礼包入口（仅宿主支持侧边栏时显示；脉动高亮吸引点击）
+    if (sidebarAvail) {
+      var gw = 72, gh = 30;
+      var gx = W - 12 - gw, gy = L.top + (L.headerH - gh) / 2;
+      var pulse = 0.55 + 0.45 * Math.abs(Math.sin(Date.now() / 420));
+      ctx.save();
+      ctx.globalAlpha = 0.65 + 0.35 * pulse;
+      btn(gx, gy, gw, gh, '入口有奖', true, openSidebarGift, { fill: '#3a2d0b', stroke: C.gold, color: C.gold });
+      ctx.restore();
+    }
   }
 
   function drawResources(L) {
@@ -575,6 +589,69 @@ var SHUI = (function () {
     modal = { title: '部落日志（近 ' + n + ' 条）', text: lines.join('\n'), okText: '关闭', cancel: false, onOk: null, tall: true };
   }
 
+  /* ---------- 侧边栏复访每日礼包（必接能力） ---------- */
+  function sidebarToday() {
+    var d = new Date();
+    var m = d.getMonth() + 1, dd = d.getDate();
+    return d.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (dd < 10 ? '0' + dd : dd);
+  }
+  function sidebarClaimedToday() {
+    try { return Platform.storageGet(SIDEBAR_CLAIM_KEY) === sidebarToday(); } catch (e) { return false; }
+  }
+  function sidebarClaimToday() {
+    try { Platform.storageSet(SIDEBAR_CLAIM_KEY, sidebarToday()); } catch (e) { /* ignore */ }
+  }
+  function openSidebarGift() {
+    if (!Platform.isTT) {
+      // 浏览器预览：仅展示弹窗说明（不跳转、不发奖）
+      modal = {
+        title: '抖音首页侧边栏入口奖励',
+        text: '（预览模式提示）在抖音端接入侧边栏复访能力：\n① 点击「去首页侧边栏」\n② 在侧边栏点击「山海经·洪荒开荒」\n③ 返回游戏，立即领奖\n每日可领一次部族礼包。',
+        okText: '知道了',
+        cancel: false,
+        tall: true
+      };
+      return;
+    }
+    if (!Platform.isFromSidebar()) {
+      // 未从侧边栏进入：展示引导 + 去首页侧边栏
+      modal = {
+        title: '抖音首页侧边栏入口奖励',
+        text: '每日限领一次的部族礼包（灵禾 +' + SIDEBAR_GIFT.linghe + '、木料 +' + SIDEBAR_GIFT.wood + '）！\n① 点击下方「去首页侧边栏」\n② 在侧边栏点击「山海经·洪荒开荒」\n③ 返回游戏，立即领奖',
+        okText: '去首页侧边栏',
+        cancel: true,
+        onOk: function () { Platform.navigateToSidebar(); },
+        tall: true
+      };
+      return;
+    }
+    // 已从侧边栏进入：领奖（每日一次）
+    if (sidebarClaimedToday()) {
+      modal = {
+        title: '今日已领取',
+        text: '今日部族礼包已领取完毕，明日再来逛逛侧边栏吧！',
+        okText: '确定',
+        cancel: false
+      };
+      return;
+    }
+    modal = {
+      title: '抖音首页侧边栏入口奖励',
+      text: '恭喜！已从抖音首页侧边栏进入游戏。\n领取今日部族礼包：\n灵禾 +' + SIDEBAR_GIFT.linghe + '、木料 +' + SIDEBAR_GIFT.wood,
+      okText: '立即领奖',
+      cancel: true,
+      onOk: function () {
+        App.G.res.linghe = (App.G.res.linghe || 0) + SIDEBAR_GIFT.linghe;
+        App.G.res.wood = (App.G.res.wood || 0) + SIDEBAR_GIFT.wood;
+        sidebarClaimToday();
+        App.log('领取侧边栏每日礼包（灵禾 +' + SIDEBAR_GIFT.linghe + '、木料 +' + SIDEBAR_GIFT.wood + '）');
+        App.save();
+        Platform.showToast('礼包已领取');
+        dirty = true;
+      }
+    };
+  }
+
   /* ---------- 操作 ---------- */
   function switchTab(tab) {
     currentTab = tab;
@@ -648,6 +725,10 @@ var SHUI = (function () {
     Platform.onTouchEnd(onUp);
     if (Platform.onShow) Platform.onShow(function () { App.G.running = true; dirty = true; });
     if (Platform.onHide) Platform.onHide(function () { App.save(); App.G.running = false; });
+    // 侧边栏复访：查询宿主是否支持跳转侧边栏（是则显示「入口有奖」）
+    if (Platform.checkSidebar) {
+      Platform.checkSidebar(function (r) { sidebarAvail = !!(r && r.isExist); dirty = true; });
+    }
     lastLogLen = App.G.log.length;
     Platform.raf(frame);
     return canvas;

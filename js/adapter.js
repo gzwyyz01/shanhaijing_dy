@@ -97,6 +97,70 @@ function onHide(cb) {
   else if (typeof document !== 'undefined') document.addEventListener('visibilitychange', function () { if (document.hidden) cb(); });
 }
 
+/* =====================================================================
+ * 侧边栏复访能力（抖音小游戏「必接」能力）
+ *  - initSidebar：必须在 game.js 启动时机调用（过早监听 tt.onShow，否则
+ *    用户从侧边栏热启动回游戏时收不到回调，导致无法领奖）
+ *  - 侧边栏场景值：抖音 021036（首页侧边栏-最近使用/常用小程序）、021012；
+ *    抖极 101036
+ *  - 浏览器预览端全部降级：checkSidebar 返回 isExist=false（不显示入口）
+ * ===================================================================== */
+var SIDEBAR_SCENES = ['021036', '021012', '101036'];
+var _lastShow = null;
+
+function initSidebar() {
+  if (!hasTT) return;
+  try {
+    // 官方要求：尽可能提前监听（game.js 运行时机），且判断是否从侧边栏启动
+    // 必须使用 tt.onShow 的最新返回值
+    tt.onShow(function (op) {
+      _lastShow = op || null;
+    });
+    try {
+      var lo = tt.getLaunchOptionsSync ? tt.getLaunchOptionsSync() : null;
+      if (lo) _lastShow = lo;
+    } catch (e) { /* ignore */ }
+  } catch (e) { /* ignore */ }
+}
+function _isSidebarScene(scene) {
+  var s = String(scene || '');
+  return SIDEBAR_SCENES.indexOf(s) >= 0;
+}
+function isFromSidebar() {
+  return _isSidebarScene(_lastShow && _lastShow.scene);
+}
+function checkSidebar(cb) {
+  if (!hasTT) { if (cb) cb({ isExist: false }); return; }
+  try {
+    tt.checkScene({
+      scene: 'sidebar',
+      success: function (r) { if (cb) cb(r || { isExist: false }); },
+      fail: function () { if (cb) cb({ isExist: false }); }
+    });
+  } catch (e) { if (cb) cb({ isExist: false }); }
+}
+function navigateToSidebar() {
+  if (!hasTT) return;
+  try {
+    tt.navigateToScene({
+      scene: 'sidebar',
+      success: function () {},
+      fail: function () {}
+    });
+  } catch (e) { /* ignore */ }
+}
+
+/* 通用本地存储（每日礼包状态等；tt / localStorage 双端） */
+function storageGet(k) {
+  if (hasTT) { try { return tt.getStorageSync(k); } catch (e) { return null; } }
+  if (typeof localStorage !== 'undefined') { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  return null;
+}
+function storageSet(k, v) {
+  if (hasTT) { try { tt.setStorageSync(k, v); } catch (e) { /* ignore */ } return; }
+  if (typeof localStorage !== 'undefined') { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
+}
+
 var SHPlatform = {
   isTT: hasTT,
   createCanvas: createCanvas,
@@ -109,7 +173,13 @@ var SHPlatform = {
   share: share,
   vibrate: vibrate,
   onShow: onShow,
-  onHide: onHide
+  onHide: onHide,
+  initSidebar: initSidebar,
+  isFromSidebar: isFromSidebar,
+  checkSidebar: checkSidebar,
+  navigateToSidebar: navigateToSidebar,
+  storageGet: storageGet,
+  storageSet: storageSet
 };
 
 if (typeof module !== 'undefined' && module.exports) {
