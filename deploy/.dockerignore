@@ -1,0 +1,6 @@
+# 构建镜像时排除的文件
+deploy/
+node_modules/
+*.log
+.git/
+.dockerignore
