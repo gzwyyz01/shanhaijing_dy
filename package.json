@@ -1,0 +1,10 @@
+{
+  "name": "shanhaijing-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "山海经·洪荒开荒 - 放置经营小游戏（静态站点，抖音云托管）",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {}
+}
