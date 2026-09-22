@@ -1,0 +1,16 @@
+{
+  "appid": "tt534225ffcd3aa56202",
+  "projectname": "shanhaijing-huanghuangkaihuang",
+  "compileType": "game",
+  "setting": {
+    "es6": true,
+    "minified": true,
+    "urlCheck": false,
+    "newFeature": true
+  },
+  "condition": {},
+  "editorSetting": {
+    "tabIndent": "insertSpaces",
+    "tabSize": 2
+  }
+}
