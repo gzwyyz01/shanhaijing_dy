@@ -26,6 +26,10 @@ var SHUI = (function () {
   var devMode = false;
   var lastLogLen = -1;
   var dirty = true;
+  /* 数值增量感知：资源变化闪金放大 + 操作上浮飘字 */
+  var lastRes = {};
+  var resPop = {};
+  var floats = [];
   /* 侧边栏复访（必接能力）状态 */
   var sidebarAvail = false;                 // 宿主是否支持跳转侧边栏（tt.checkScene）
   var SIDEBAR_CLAIM_KEY = 'shj_sidebar_claim_date';
@@ -146,11 +150,39 @@ var SHUI = (function () {
       var rate = rates[k] || 0;
       var cls = rate > 0.0005 ? C.jade : (rate < -0.0005 ? C.red : C.dim);
       var cx = i * cellW;
-      ctx.fillStyle = i > 0 ? C.border : 'rgba(0,0,0,0)';
-      if (i > 0) ctx.fillRect(cx, L.resTop + 6, 1, L.resH - 12);
-      text(SHCore.DATA.RES_DEF[k].title, cx + 10, L.resTop + 8, 11, C.dim);
-      text(SHCore.fmt(v) + capTxt, cx + 10, L.resTop + 24, 15, C.text);
-      text(SHCore.fmtRate(rate), cx + 10, L.resTop + 46, 11, cls);
+      // 增量感知：数值变化 → 闪金放大 2 帧
+      var last = lastRes[k];
+      if (last === undefined) lastRes[k] = v;
+      var changed = Math.abs(v - last) > 0.001;
+      lastRes[k] = v;
+      if (changed) resPop[k] = 2;
+      var popping = resPop[k] > 0;
+      if (resPop[k] > 0) resPop[k]--;
+      if (i > 0) {
+        ctx.fillStyle = C.border;
+        ctx.fillRect(cx, L.resTop + 6, 1, L.resH - 12);
+      }
+      // 主资源（灵禾）：金边 + 上限进度条（>80% 琥珀提示将满）
+      if (i === 0) {
+        roundRect(cx + 3, L.resTop + 3, cellW - 6, L.resH - 6, 8);
+        ctx.strokeStyle = C.gold;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        var pct = isFinite(max) && max > 0 ? Math.min(1, v / max) : 0;
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        roundRect(cx + 8, L.resTop + 64, cellW - 16, 5, 3);
+        ctx.fill();
+        if (pct > 0.02) {
+          ctx.fillStyle = pct > 0.8 ? C.gold : C.jade;
+          roundRect(cx + 8, L.resTop + 64, (cellW - 16) * pct, 5, 3);
+          ctx.fill();
+        }
+      }
+      text(SHCore.DATA.RES_DEF[k].title, cx + 10, L.resTop + 8, 11, i === 0 ? C.gold : C.dim, 'left', i === 0);
+      text(SHCore.fmt(v) + capTxt, cx + 10, L.resTop + 24, popping ? 16 : 15, popping ? C.gold : C.text, 'left', popping);
+      // 速率：加大加粗 + ▲/▼ 方向箭头（绿涨红跌）
+      var arrow = rate > 0.0005 ? '▲ ' : (rate < -0.0005 ? '▼ ' : '');
+      text(arrow + SHCore.fmtRate(rate), cx + 10, L.resTop + 46, 13, cls, 'left', true);
     }
   }
 
@@ -248,6 +280,25 @@ var SHUI = (function () {
     drawContent(L);
     drawDevBar(L);
     drawModal();
+    drawFloats();
+  }
+
+  /* 操作反馈飘字：上浮 + 淡出，1 秒生命周期 */
+  function addFloat(x, y, str, color, size) {
+    floats.push({ x: x, y: y, str: str, color: color || C.gold, size: size || 14, t0: Date.now() });
+    dirty = true;
+  }
+  function drawFloats() {
+    var now = Date.now();
+    for (var i = floats.length - 1; i >= 0; i--) {
+      var f = floats[i];
+      var age = (now - f.t0) / 1000;
+      if (age >= 1) { floats.splice(i, 1); continue; }
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - age);
+      text(f.str, f.x, f.y - age * 22, f.size, f.color, 'center', true);
+      ctx.restore();
+    }
   }
 
   function drawDevBar(L) {
@@ -364,7 +415,10 @@ var SHUI = (function () {
       rowPanel(10, y, W - 20, 60);
       text('采集灵禾', 20, y + 10, 14, C.text, 'left', true);
       text('轻点采集 +10 灵禾', 20, y + 34, 11.5, C.dim);
-      btn(W - 110, y + 28, 96, 26, '采集 +10', true, function () { App.gather(); dirty = true; }, { stroke: C.gold, color: C.gold });
+      btn(W - 110, y + 28, 96, 26, '采集 +10', true, function () {
+        if (App.gather()) addFloat(W - 62, y + 24, '+10 灵禾', C.gold);
+        dirty = true;
+      }, { stroke: C.gold, color: C.gold });
     } });
     // 精炼行（10 灵禾 → 1 木料）：灵田上方常驻
     rows.push({ h: 68, draw: function (y) {
@@ -372,7 +426,11 @@ var SHUI = (function () {
       text('精炼木料', 20, y + 10, 14, C.text, 'left', true);
       text('100 灵禾 → 1 木料', 20, y + 34, 11.5, C.dim);
       var can = (App.G.res.linghe || 0) >= 100;
-      btn(W - 110, y + 28, 96, 26, '精炼', can, function () { App.craft('wood'); dirty = true; }, {});
+      btn(W - 110, y + 28, 96, 26, '精炼', can, function () {
+        App.craft('wood');
+        if (can) addFloat(W - 62, y + 24, '+1 木料', C.jade);
+        dirty = true;
+      }, {});
     } });
     for (var i = 0; i < D.BLD_ORDER.length; i++) {
       var k = D.BLD_ORDER[i];
@@ -396,7 +454,11 @@ var SHUI = (function () {
           }
           text(b2.desc, 20, y + 56, 11.5, C.dim);
           if (fx) text(clipText(fx, W - 110, 11.5), 20, y + 70, 11.5, C.jade);
-          btn(W - 70, y + 44, 56, 26, '建造', can, function () { App.build(k2); dirty = true; }, {});
+          btn(W - 70, y + 44, 56, 26, '建造', can, function () {
+            App.build(k2);
+            if (can) addFloat(W - 42, y + 40, b2.title + ' +1', C.gold);
+            dirty = true;
+          }, {});
         } });
       })(k, b);
     }
@@ -699,6 +761,7 @@ var SHUI = (function () {
     var L = layout();
     // 文本变化检测（提示条等）
     if (App.G.log.length !== lastLogLen) { lastLogLen = App.G.log.length; dirty = true; }
+    if (floats.length) dirty = true;   // 飘字动画持续刷新
     if (dirty) { draw(L); dirty = false; }
     Platform.raf(frame);
   }
