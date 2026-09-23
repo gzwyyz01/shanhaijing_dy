@@ -130,7 +130,7 @@ var SHUI = (function () {
     text('山海经·洪荒开荒', 12, L.top + 8, 16, C.gold, 'left', true);
     var G = App.G;
     var s = SHCore.DATA.SEASONS[G.season];
-    var modTxt = App.isTech('lifa') ? '（灵禾 ×' + s.mod + '）' : '';
+    var modTxt = (App.isTech('lifa') && s.mod !== 1) ? '（灵禾 ×' + s.mod + '）' : '';
     text('第 ' + G.year + ' 年 · ' + s.name + ' · 第 ' + G.day + ' 天 ' + modTxt, 12, L.top + 30, 12, C.dim);
   }
 
