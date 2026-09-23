@@ -184,10 +184,20 @@ var SHUI = (function () {
         }
       }
       text(SHCore.DATA.RES_DEF[k].title, cx + 10, L.resTop + 8, 11, i === 0 ? C.gold : C.dim, 'left', i === 0);
-      text(SHCore.fmt(v) + capTxt, cx + 10, L.resTop + 24, popping ? 16 : 15, popping ? C.gold : C.text, 'left', popping);
-      // 速率：加大加粗 + ▲/▼ 方向箭头（绿涨红跌）
+      // 数值+上限：自适应字号防止大数溢出窄格
+      var fullTxt = SHCore.fmt(v) + capTxt;
+      var fs = popping ? 16 : 15;
+      ctx.font = (popping ? 'bold ' : '') + fs + 'px sans-serif';
+      var maxW = cellW - 16;
+      while (ctx.measureText(fullTxt).width > maxW && fs > 9) { fs -= 1; ctx.font = (popping ? 'bold ' : '') + fs + 'px sans-serif'; }
+      text(fullTxt, cx + 10, L.resTop + 24, fs, popping ? C.gold : C.text, 'left', popping);
+      // 速率：加大加粗 + ▲/▼ 方向箭头（绿涨红跌）；同样自适应字号
       var arrow = rate > 0.0005 ? '▲ ' : (rate < -0.0005 ? '▼ ' : '');
-      text(arrow + SHCore.fmtRate(rate), cx + 10, L.resTop + 46, 13, cls, 'left', true);
+      var rateTxt = arrow + SHCore.fmtRate(rate);
+      var fs2 = 13;
+      ctx.font = 'bold ' + fs2 + 'px sans-serif';
+      while (ctx.measureText(rateTxt).width > maxW && fs2 > 9) { fs2 -= 1; ctx.font = 'bold ' + fs2 + 'px sans-serif'; }
+      text(rateTxt, cx + 10, L.resTop + 46, fs2, cls, 'left', true);
     }
   }
 

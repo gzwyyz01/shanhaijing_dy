@@ -90,14 +90,36 @@ function getLimitedDR(value, cap) {
 function fmt(n) {
   if (!isFinite(n)) return '∞';
   var a = Math.abs(n);
-  if (a >= 1e8) return trim(n / 1e8) + '亿';
-  if (a >= 1e4) return trim(n / 1e4) + '万';
-  if (a >= 1000) return trim(n / 1000) + 'K';
-  if (a >= 100) return Math.floor(n).toString();
-  if (a >= 1) return (Math.round(n * 10) / 10).toString();
-  return (Math.round(n * 100) / 100).toString();
+  var sign = n < 0 ? '-' : '';
+  var v = a, unit = '';
+  if (v >= 1e8) { v /= 1e8; unit = '亿'; }
+  else if (v >= 1e4) { v /= 1e4; unit = '万'; }
+  else if (v >= 1000) { v /= 1000; unit = 'K'; }
+  else if (v >= 100) return sign + Math.floor(v).toString();
+  else if (v >= 1) return sign + (Math.round(v * 10) / 10).toString();
+  else return sign + (Math.round(v * 100) / 100).toString();
+  var s = sig3(v);
+  // 进位修正：万单位进位到 10000（原值≥1e8）→ 改用亿
+  if (unit === '万' && parseFloat(s) >= 10000) {
+    v = v / 10000; unit = '亿';
+    s = sig3(v);
+    if (parseFloat(s) >= 1000) s = '1';
+  }
+  return sign + s + unit;
 }
-function trim(s) { return (Math.round(s * 100) / 100).toString(); }
+/* 3 位有效数字、去尾零（防止大数在窄格中溢出，如 123.46万 → 123万） */
+function sig3(x) {
+  if (x === 0) return '0';
+  var v = Math.abs(x);
+  var places = 2 - Math.floor(Math.log(v) / Math.LN10);
+  if (places < 0) places = 0;
+  if (places > 6) places = 6;
+  var r = Math.round(v * Math.pow(10, places)) / Math.pow(10, places);
+  if (r >= 1000 && v < 1) r = 1;   // 0.999x 进位→1 个单位
+  var s = r.toString();
+  if (s.indexOf('.') >= 0) s = s.replace(/\.?0+$/, '');
+  return (x < 0 ? '-' : '') + s;
+}
 function fmtRate(n) {
   if (Math.abs(n) < 0.0005) return '0';
   return (n >= 0 ? '+' : '−') + fmt(Math.abs(n)) + '/t';
