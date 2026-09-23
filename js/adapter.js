@@ -163,13 +163,18 @@ function storageSet(k, v) {
 
 /* =====================================================================
  * 排行榜网络请求（tt.request / fetch 双端）与匿名设备标识
+ * 注意：抖音端 tt.request 必须使用完整 https URL（相对路径会直接失败，
+ * 显示「网络异常」）；浏览器端 fetch 会自动拼接当前域名。故统一在此
+ * 将相对路径拼到 RANK_BASE_URL 上。
  * ===================================================================== */
+var RANK_BASE_URL = 'https://1mettiuvm1b1l-env-zlfz29hqoi.service.douyincloud.run';
 function httpJson(url, method, body) {
+  var full = (/^https?:\/\//i.test(url)) ? url : RANK_BASE_URL + url;
   if (hasTT) {
     return new Promise(function (resolve, reject) {
       try {
         tt.request({
-          url: url,
+          url: full,
           method: method || 'GET',
           data: body || undefined,
           header: { 'Content-Type': 'application/json' },
@@ -180,7 +185,7 @@ function httpJson(url, method, body) {
     });
   }
   // 浏览器预览端 / Node：fetch
-  return fetch(url, {
+  return fetch(full, {
     method: method || 'GET',
     headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined
