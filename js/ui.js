@@ -115,7 +115,7 @@ var SHUI = (function () {
     var bottom = H - safeBottom;
     var headerH = 58;
     var resH = 94;
-    var hintH = 40;
+    var hintH = 56;
     var tabH = 44;
     var devH = devMode ? 38 : 0;
     return {
@@ -209,7 +209,7 @@ var SHUI = (function () {
     var hint = nextHint();
     var starving = App.G.starving;
     var color = starving ? C.red : C.gold;
-    var y = L.hintTop + (L.hintH - 13) / 2;
+    var y = L.hintTop + 44;
     // 右侧操作按钮：入口有奖 / 日志 / 暂停 / 存档（放提示条，避开顶部模拟器悬浮调试条）
     var bw = 42, bh = 24, gap = 6;
     var sbW = sidebarAvail ? 70 : 0;   // 「入口有奖」仅侧边栏可用时显示
@@ -218,22 +218,21 @@ var SHUI = (function () {
       var pulse = 0.55 + 0.45 * Math.abs(Math.sin(Date.now() / 420));
       ctx.save();
       ctx.globalAlpha = 0.65 + 0.35 * pulse;
-      btn(bx, L.hintTop + (L.hintH - bh) / 2, sbW, bh, '入口有奖', true, openSidebarGift, { fill: '#3a2d0b', stroke: C.gold, color: C.gold });
+      btn(bx, L.hintTop + 2, sbW, bh, '入口有奖', true, openSidebarGift, { fill: '#3a2d0b', stroke: C.gold, color: C.gold });
       ctx.restore();
       bx -= sbW + gap;
     }
-    btn(bx, L.hintTop + (L.hintH - bh) / 2, bw, bh, '存档', true, doSave, {});
+    btn(bx, L.hintTop + 2, bw, bh, '存档', true, doSave, {});
     bx -= bw + gap;
-    btn(bx, L.hintTop + (L.hintH - bh) / 2, bw, bh, App.G.running ? '暂停' : '继续', true, togglePause, { stroke: C.gold, color: C.gold });
+    btn(bx, L.hintTop + 2, bw, bh, App.G.running ? '暂停' : '继续', true, togglePause, { stroke: C.gold, color: C.gold });
     bx -= bw + gap;
-    btn(bx, L.hintTop + (L.hintH - bh) / 2, bw, bh, '日志', true, showLogModal, {});
+    btn(bx, L.hintTop + 2, bw, bh, '日志', true, showLogModal, {});
     bx -= bw + gap;
-    btn(bx, L.hintTop + (L.hintH - bh) / 2, bw, bh, '排行', true, openRankPanel, { stroke: C.jade, color: C.jade });
+    btn(bx, L.hintTop + 2, bw, bh, '排行', true, openRankPanel, { stroke: C.jade, color: C.jade });
     // 提示文本（截断到按钮左侧）
     var str = hint;
     ctx.font = '12px sans-serif';
-    var btnW = (sidebarAvail ? sbW + gap : 0) + bw * 4 + gap * 3 + 10;
-    var maxW = W - 24 - btnW;
+    var maxW = W - 24;
     while (ctx.measureText(str).width > maxW && str.length > 4) str = str.slice(0, -1);
     if (str !== hint) str = str.slice(0, -1) + '…';
     text(str, 12, y, 12, color);
