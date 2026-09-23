@@ -34,6 +34,11 @@ var SHUI = (function () {
   var sidebarAvail = false;                 // 宿主是否支持跳转侧边栏（tt.checkScene）
   var SIDEBAR_CLAIM_KEY = 'shj_sidebar_claim_date';
   var SIDEBAR_GIFT = { linghe: 500, wood: 10 };  // 每日礼包内容
+  /* 部族巅峰榜（排行榜）状态 */
+  var rankPanel = null;        // { list, total, loading, error }
+  var lastPeakSent = -1;       // 已成功上报的巅峰值（防重复提交）
+  var lastPeakNoticed = -1;    // 已提示过的巅峰值（新巅峰飘字）
+  var rankFrameCount = 0;
 
   var C = {
     bg: '#0e1420', panel: '#17202f', panel2: '#1d2738', border: '#2a3950',
@@ -212,10 +217,12 @@ var SHUI = (function () {
     btn(bx, L.hintTop + (L.hintH - bh) / 2, bw, bh, App.G.running ? '暂停' : '继续', true, togglePause, { stroke: C.gold, color: C.gold });
     bx -= bw + gap;
     btn(bx, L.hintTop + (L.hintH - bh) / 2, bw, bh, '日志', true, showLogModal, {});
+    bx -= bw + gap;
+    btn(bx, L.hintTop + (L.hintH - bh) / 2, bw, bh, '排行', true, openRankPanel, { stroke: C.jade, color: C.jade });
     // 提示文本（截断到按钮左侧）
     var str = hint;
     ctx.font = '12px sans-serif';
-    var btnW = (sidebarAvail ? sbW + gap : 0) + bw * 3 + gap * 2 + 10;
+    var btnW = (sidebarAvail ? sbW + gap : 0) + bw * 4 + gap * 3 + 10;
     var maxW = W - 24 - btnW;
     while (ctx.measureText(str).width > maxW && str.length > 4) str = str.slice(0, -1);
     if (str !== hint) str = str.slice(0, -1) + '…';
@@ -280,6 +287,7 @@ var SHUI = (function () {
     drawContent(L);
     drawDevBar(L);
     drawModal();
+    drawRankPanel(L);
     drawFloats();
   }
 
@@ -720,6 +728,77 @@ var SHUI = (function () {
     };
   }
 
+  /* ---------- 部族巅峰榜（排行榜） ---------- */
+  function seasonName(s) { return SHCore.DATA.SEASONS[Math.max(0, Math.min(3, s))].name; }
+  function openRankPanel() {
+    rankPanel = { list: [], total: 0, loading: true, error: '' };
+    loadRank();
+    dirty = true;
+  }
+  function loadRank() {
+    if (!Platform.httpJson) { rankPanel.error = '当前环境不支持联网'; rankPanel.loading = false; return; }
+    Platform.httpJson('/api/rank?top=20', 'GET').then(function (d) {
+      if (d && d.ok) { rankPanel.list = d.list || []; rankPanel.total = d.total || 0; }
+      else { rankPanel.error = '榜单暂时无法获取'; }
+      rankPanel.loading = false; dirty = true;
+    }).catch(function () { rankPanel.error = '网络异常，稍后再试'; rankPanel.loading = false; dirty = true; });
+  }
+  function drawRankPanel(L) {
+    if (!rankPanel) return;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, 0, W, H);
+    var mw = Math.min(340, W - 24);
+    var mh = Math.min(H - 60, H * 0.84);
+    var mx = (W - mw) / 2, my = 26;
+    roundRect(mx, my, mw, mh, 10);
+    ctx.fillStyle = C.panel2; ctx.fill();
+    ctx.strokeStyle = C.border; ctx.lineWidth = 1; ctx.stroke();
+    text('部族巅峰榜', mx + 14, my + 12, 16, C.gold, 'left', true);
+    var G = App.G;
+    text('我的巅峰：' + G.peakKittens + ' 名族人 · ' + '第' + G.peakYear + '年·' + seasonName(G.peakSeason) + '·第' + G.peakDay + '天', mx + 14, my + 38, 11.5, C.jade);
+    var topY = my + 60;
+    var rowH = 24;
+    var rows = rankPanel.list || [];
+    if (rankPanel.loading) {
+      text('榜单加载中…', mx + 14, topY + 12, 13, C.dim);
+    } else if (rankPanel.error) {
+      text(rankPanel.error, mx + 14, topY + 12, 13, C.red);
+    } else if (!rows.length) {
+      text('暂无上榜部族，快去壮大你的氏族吧！', mx + 14, topY + 12, 13, C.dim);
+    } else {
+      text('名次', mx + 14, topY, 11.5, C.dim);
+      text('巅峰族人', mx + 64, topY, 11.5, C.dim);
+      text('达成时刻', mx + 150, topY, 11.5, C.dim);
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i];
+        var yy = topY + 14 + i * rowH;
+        if (yy + rowH > my + mh - 50) break;
+        var top3 = r.rank <= 3;
+        text('#' + r.rank, mx + 14, yy, 13, top3 ? C.gold : C.text, 'left', top3);
+        text(SHCore.fmt(r.peak), mx + 64, yy, 13, top3 ? C.gold : C.text, 'left', top3);
+        text('第' + r.year + '年·' + seasonName(r.season) + '·' + r.day + '天', mx + 150, yy, 12, C.dim);
+      }
+      if (rankPanel.total > rows.length) text('… 共 ' + rankPanel.total + ' 位部族上榜', mx + 14, my + mh - 46, 11.5, C.dim);
+    }
+    btn(mx + mw - 100, my + mh - 40, 44, 28, '刷新', true, function () { rankPanel.loading = true; rankPanel.error = ''; loadRank(); }, {});
+    btn(mx + mw - 50, my + mh - 40, 40, 28, '关闭', true, function () { rankPanel = null; dirty = true; }, { stroke: C.gold, color: C.gold });
+  }
+  /* 巅峰上报：新巅峰即时飘字 + 防抖提交（仅在新峰值时 POST） */
+  function uploadPeakIfNeeded(L) {
+    var G = App.G;
+    if (!G.peakKittens) return;
+    if (G.peakKittens > lastPeakNoticed) {
+      lastPeakNoticed = G.peakKittens;
+      if (L) addFloat(W / 2, L.contentTop + 36, '新巅峰：族人 ' + G.peakKittens + ' 名', C.gold, 16);
+    }
+    if (G.peakKittens <= lastPeakSent) return;
+    Platform.httpJson('/api/rank', 'POST', {
+      devId: Platform.getDeviceId(),
+      peak: G.peakKittens, day: G.peakDay, season: G.peakSeason, year: G.peakYear
+    }).then(function (d) { if (d && d.ok) lastPeakSent = G.peakKittens; })
+      .catch(function () { /* 网络失败，稍后重试 */ });
+  }
+
   /* ---------- 操作 ---------- */
   function switchTab(tab) {
     currentTab = tab;
@@ -742,13 +821,14 @@ var SHUI = (function () {
 
   function onDown(p) {
     touchX = p.x; touchY = p.y;
+    if (rankPanel) { hitTest(p); return; }
     if (modal) { hitTest(p); return; }
     if (hitTest(p)) return;
     dragY = p.y;
     dragStartY = scrollY;
   }
   function onMove(p) {
-    if (modal || dragY === null) return;
+    if (rankPanel || modal || dragY === null) return;
     scrollY = dragStartY + (dragY - p.y);
     dirty = true;
   }
@@ -765,6 +845,9 @@ var SHUI = (function () {
       dirty = true;   // 每逻辑 tick 刷新数值（5 次/秒，对齐原版观感）
     }
     var L = layout();
+    // 排行榜：新巅峰提示 + 上报（每 2 秒检查，仅新峰值才发请求）
+    rankFrameCount++;
+    if (rankFrameCount % 120 === 0) uploadPeakIfNeeded(L);
     // 文本变化检测（提示条等）
     if (App.G.log.length !== lastLogLen) { lastLogLen = App.G.log.length; dirty = true; }
     if (floats.length) dirty = true;   // 飘字动画持续刷新

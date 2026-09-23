@@ -127,6 +127,7 @@ function createGame() {
     res: {}, bld: {}, jobs: {}, techs: {},
     kittens: 0, kittenProgress: 0, qiyun: 0, starveProgress: 0,
     effects: {}, log: [], seen: {},
+    peakKittens: 0, peakDay: 1, peakSeason: 0, peakYear: 1,   // 历史巅峰族人及达成时刻（排行榜）
     lastSaveTick: 0, autosaveEvery: 400,
     starving: false
   };
@@ -154,6 +155,8 @@ function createGame() {
     if (!d.log) d.log = [];
     if (typeof d.kittens === 'number') d.kittens = Math.floor(d.kittens);
     if (d.res.linghe === undefined) d.res.linghe = 0;   // 仅缺失时补 0，旧档灵禾保留
+    // 排行榜峰值字段：旧档补默认（不升 SAVE_VERSION，避免清档）
+    if (typeof d.peakKittens !== 'number') { d.peakKittens = Math.floor(d.kittens || 0); d.peakDay = d.day || 1; d.peakSeason = d.season || 0; d.peakYear = d.year || 1; }
   }
 
   function isTech(n) { return !!G.techs[n]; }
@@ -295,6 +298,14 @@ function createGame() {
     }
   }
 
+  // 巅峰族人追踪：族人上升时记录峰值与达成时刻（轮回/饿死不降低）
+  function peakUpdate() {
+    if (G.kittens > G.peakKittens) {
+      G.peakKittens = G.kittens;
+      G.peakDay = G.day; G.peakSeason = G.season; G.peakYear = G.year;
+    }
+  }
+
   // 手动采集灵禾：点一下 +1（原版 catnip 点击），受灵禾上限约束；满仓返回 false
   function gather() {
     var max = getMax('linghe');
@@ -389,7 +400,8 @@ function createGame() {
       tick: G.tick, day: G.day, season: G.season, year: G.year,
       res: G.res, bld: G.bld, jobs: G.jobs, techs: G.techs,
       kittens: G.kittens, kittenProgress: G.kittenProgress, qiyun: G.qiyun,
-      seen: G.seen, log: G.log.slice(-80)
+      seen: G.seen, log: G.log.slice(-80),
+      peakKittens: G.peakKittens, peakDay: G.peakDay, peakSeason: G.peakSeason, peakYear: G.peakYear
     });
   }
   function apply(d) {
@@ -398,6 +410,8 @@ function createGame() {
     G.techs = shallow(d.techs); G.seen = shallow(d.seen);
     G.kittens = d.kittens || 0; G.kittenProgress = d.kittenProgress || 0;
     G.qiyun = d.qiyun || 0; G.log = (d.log || []).slice();
+    G.peakKittens = d.peakKittens || 0; G.peakDay = d.peakDay || 1;
+    G.peakSeason = d.peakSeason || 0; G.peakYear = d.peakYear || 1;
   }
   function shallow(o) { var r = {}; if (o) { for (var k in o) r[k] = o[k]; } return r; }
   function save() { try { storageSet(SAVE_KEY, serialize()); } catch (e) { /* ignore */ } }
@@ -427,6 +441,7 @@ function createGame() {
       updateCaches();
       resourcesUpdate();
       villageUpdate();
+      peakUpdate();
     }
     if (G.tick - G.lastSaveTick >= G.autosaveEvery) {
       G.lastSaveTick = G.tick;

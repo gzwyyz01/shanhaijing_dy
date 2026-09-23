@@ -161,6 +161,41 @@ function storageSet(k, v) {
   if (typeof localStorage !== 'undefined') { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
 }
 
+/* =====================================================================
+ * 排行榜网络请求（tt.request / fetch 双端）与匿名设备标识
+ * ===================================================================== */
+function httpJson(url, method, body) {
+  if (hasTT) {
+    return new Promise(function (resolve, reject) {
+      try {
+        tt.request({
+          url: url,
+          method: method || 'GET',
+          data: body || undefined,
+          header: { 'Content-Type': 'application/json' },
+          success: function (r) { resolve(r.data); },
+          fail: function (e) { reject(e); }
+        });
+      } catch (e) { reject(e); }
+    });
+  }
+  // 浏览器预览端 / Node：fetch
+  return fetch(url, {
+    method: method || 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined
+  }).then(function (r) { return r.json(); });
+}
+function getDeviceId() {
+  var k = 'shj_dev_id';
+  var v = storageGet(k);
+  if (!v) {
+    v = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    storageSet(k, v);
+  }
+  return v;
+}
+
 var SHPlatform = {
   isTT: hasTT,
   createCanvas: createCanvas,
@@ -179,7 +214,9 @@ var SHPlatform = {
   checkSidebar: checkSidebar,
   navigateToSidebar: navigateToSidebar,
   storageGet: storageGet,
-  storageSet: storageSet
+  storageSet: storageSet,
+  httpJson: httpJson,
+  getDeviceId: getDeviceId
 };
 
 if (typeof module !== 'undefined' && module.exports) {
