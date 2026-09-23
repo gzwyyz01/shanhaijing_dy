@@ -38,10 +38,11 @@ var RES_DEF = {
   xuantie: { title: '玄铁', desc: '百炼神铁', craft: true }
 };
 
-var BLD_ORDER = ['lingTian', 'caolu', 'linchang', 'cangjingge', 'liangcang', 'kuangdong', 'lianqifang', 'yelianlu'];
+var BLD_ORDER = ['lingTian', 'caolu', 'muliaoCang', 'linchang', 'cangjingge', 'liangcang', 'kuangdong', 'lianqifang', 'yelianlu'];
 var BLD_DEF = {
   lingTian:  { title: '灵田', desc: '开垦沃土，灵禾自生', unlock: 'start', ratio: 1.12, prices: { linghe: 100 }, fx: { linghe: 1.25 } },
   caolu:     { title: '草庐', desc: '遮风避雨，族人安居（1 座 = 2 人口上限）', unlock: 'wood', ratio: 2.5,  prices: { wood: 50 }, fx: { maxKittens: 2 } },
+  muliaoCang:{ title: '木料仓', desc: '贮存木料，以应营造（木料上限 +1000）', unlock: 'wood', ratio: 1.5, prices: { wood: 100 }, fx: { woodMax: 1000 } },
   linchang:  { title: '林场', desc: '入山采伐，林木不绝', unlock: 'lifa', ratio: 1.15, prices: { linghe: 400, wood: 300 }, fx: { wood: 0.5 } },
   cangjingge:{ title: '藏经阁', desc: '藏书之所，学识之源', unlock: 'wood', ratio: 1.15, prices: { wood: 250 }, fx: { xueshi: 2.5, xueshiMax: 500 } },
   liangcang: { title: '粮仓', desc: '储粮备荒，以度严冬（灵禾上限 +1500）', unlock: 'lifa', ratio: 1.75, prices: { wood: 500 }, fx: { lingheMax: 1500 } },
@@ -50,8 +51,9 @@ var BLD_DEF = {
   yelianlu:  { title: '冶炼炉', desc: '烈火熔金，青铜乃成', unlock: 'jinjing', ratio: 1.15, prices: { wood: 1500, stone: 800, bronze: 300 }, fx: { bronze: 0.5 } }
 };
 
-var JOB_ORDER = ['lingnong', 'qiaofu', 'zaoshijiang'];
+var JOB_ORDER = ['caiyaoren', 'lingnong', 'qiaofu', 'zaoshijiang'];
 var JOB_DEF = {
+  caiyaoren:  { title: '采药人', desc: '采撷灵药，聊补粮秣（开局即可分配）', unlock: 'start', fx: { linghe: 0.5 } },
   lingnong:   { title: '灵农', desc: '耕种灵禾', unlock: 'baicaojing', fx: { linghe: 10 } },
   qiaofu:     { title: '樵夫', desc: '入山伐木（需先精炼起家）', unlock: 'lifa', fx: { wood: 0.18 } },
   zaoshijiang:{ title: '凿石匠', desc: '凿石开山', unlock: 'shanjing', fx: { stone: 0.5 } }
@@ -231,6 +233,7 @@ function createGame() {
   function getMax(res) {
     if (res === 'linghe') return 1000 + getEffect('lingheMax');
     if (res === 'xueshi') return 1000 + getEffect('xueshiMax');
+    if (res === 'wood') return 1000 + getEffect('woodMax');
     return Infinity;
   }
 

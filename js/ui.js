@@ -389,12 +389,13 @@ var SHUI = (function () {
   }
   function fxTxt(fx) {
     var arr = [];
-    var noTickKeys = { maxKittens: 1, lingheMax: 1, xueshiMax: 1, woodRatio: 1, xueshiRatio: 1, prodRatio: 1 };
+    var noTickKeys = { maxKittens: 1, lingheMax: 1, xueshiMax: 1, woodMax: 1, woodRatio: 1, xueshiRatio: 1, prodRatio: 1 };
     for (var k in fx) {
       var label = SHCore.DATA.RES_DEF[k] ? SHCore.DATA.RES_DEF[k].title : k;
       if (label === 'maxKittens') label = '族人上限';
       if (label === 'lingheMax') label = '灵禾上限';
       if (label === 'xueshiMax') label = '学识上限';
+      if (label === 'woodMax') label = '木料上限';
       if (label === 'woodRatio') label = '木料产出';
       if (label === 'xueshiRatio') label = '学识产出';
       var v = fx[k];
@@ -472,6 +473,9 @@ var SHUI = (function () {
     var rates = App.calcRates();
     var foodRate = rates.linghe || 0;
     var pct = Math.min(100, Math.floor(App.G.kittenProgress * 100));
+    var assigned = 0, k2;
+    for (k2 in App.G.jobs) assigned += App.G.jobs[k2];
+    var idle = App.G.kittens - assigned;
     rows.push({ h: 84, draw: function (y) {
       rowPanel(10, y, W - 20, 76);
       text('族人', 20, y + 10, 14, C.text, 'left', true);
@@ -483,7 +487,7 @@ var SHUI = (function () {
       ctx.fillStyle = C.jade;
       roundRect(20, y + 34, (W - 40) * pct / 100, 8, 4);
       ctx.fill();
-      text('出生进度 ' + pct + '% · 灵禾收支 ' + SHCore.fmtRate(foodRate), 20, y + 50, 11.5, C.dim);
+      text('空闲 ' + idle + ' 人 · 出生进度 ' + pct + '% · 灵禾收支 ' + SHCore.fmtRate(foodRate), 20, y + 50, 11.5, C.dim);
       if (App.G.starving) text('⚠ 灵禾断绝，族人正在饿死！', 20, y + 63, 11.5, C.red);
     } });
     for (var i = 0; i < D.JOB_ORDER.length; i++) {
@@ -492,6 +496,8 @@ var SHUI = (function () {
       if (!App.isJobUnlocked(k)) continue;   // 未解锁职业隐藏
       (function (k2, j2) {
         var n = App.G.jobs[k2] || 0;
+        var canAdd = assigned < App.G.kittens;      // 无空闲族人不准加人
+        var canRemove = n > 0;
         var jfx = [];
         for (var f in j2.fx) jfx.push('+' + SHCore.fmt(j2.fx[f]) + ' ' + D.RES_DEF[f].title + '/t');
         rows.push({ h: 68, draw: function (y) {
@@ -499,8 +505,8 @@ var SHUI = (function () {
           text(j2.title, 20, y + 9, 14, C.text, 'left', true);
           text('×' + n, W - 20 - 16, y + 9, 13, C.gold, 'right');
           text(clipText(j2.desc + ' · ' + jfx.join(' '), W - 150, 11.5), 20, y + 34, 11.5, C.dim);
-          btn(W - 110, y + 30, 40, 26, '−', true, function () { App.setJob(k2, -1); dirty = true; }, {});
-          btn(W - 62, y + 30, 40, 26, '＋', true, function () { App.setJob(k2, 1); dirty = true; }, {});
+          btn(W - 110, y + 30, 40, 26, '−', canRemove, function () { App.setJob(k2, -1); dirty = true; }, {});
+          btn(W - 62, y + 30, 40, 26, '＋', canAdd, function () { App.setJob(k2, 1); dirty = true; }, {});
         } });
       })(k, j);
     }
