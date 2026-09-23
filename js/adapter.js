@@ -48,27 +48,37 @@ function raf(cb) {
   return setTimeout(cb, 1000 / 60);
 }
 
-/* 触摸回调统一为 {x, y}（CSS 逻辑像素） */
+/* 触摸回调统一为 {x, y}（CSS 逻辑像素）。
+   浏览器端同时监听 touch 与 mouse：手机触摸会合成 mousedown/mouseup，
+   用 lastTouch 时间窗忽略触摸后 400ms 内的合成鼠标事件，避免双击。 */
+var __lastTouch = 0;
+function __isSynthMouse() { return Date.now() - __lastTouch < 400; }
 function onTouchStart(cb) {
   if (hasTT) { tt.onTouchStart(function (e) { if (e && e.touches && e.touches[0]) cb({ x: e.touches[0].clientX, y: e.touches[0].clientY }); }); return; }
   var c = document.querySelector('canvas');
   if (!c) return;
-  c.addEventListener('mousedown', function (e) { cb({ x: e.offsetX, y: e.offsetY }); });
-  c.addEventListener('touchstart', function (e) { if (e.touches[0]) cb({ x: e.touches[0].clientX, y: e.touches[0].clientY }); });
+  c.addEventListener('mousedown', function (e) { if (!__isSynthMouse()) cb({ x: e.offsetX, y: e.offsetY }); });
+  c.addEventListener('touchstart', function (e) {
+    __lastTouch = Date.now();
+    if (e.touches[0]) cb({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+  });
 }
 function onTouchMove(cb) {
   if (hasTT) { tt.onTouchMove(function (e) { if (e && e.touches && e.touches[0]) cb({ x: e.touches[0].clientX, y: e.touches[0].clientY }); }); return; }
   var c = document.querySelector('canvas');
   if (!c) return;
-  c.addEventListener('mousemove', function (e) { cb({ x: e.offsetX, y: e.offsetY }); });
-  c.addEventListener('touchmove', function (e) { if (e.touches[0]) cb({ x: e.touches[0].clientX, y: e.touches[0].clientY }); });
+  c.addEventListener('mousemove', function (e) { if (!__isSynthMouse()) cb({ x: e.offsetX, y: e.offsetY }); });
+  c.addEventListener('touchmove', function (e) {
+    __lastTouch = Date.now();
+    if (e.touches[0]) cb({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+  });
 }
 function onTouchEnd(cb) {
   if (hasTT) { tt.onTouchEnd(function (e) { cb(); }); return; }
   var c = document.querySelector('canvas');
   if (!c) return;
-  c.addEventListener('mouseup', function () { cb(); });
-  c.addEventListener('touchend', function () { cb(); });
+  c.addEventListener('mouseup', function () { if (!__isSynthMouse()) cb(); });
+  c.addEventListener('touchend', function () { __lastTouch = Date.now(); cb(); });
 }
 
 function showToast(title) {
