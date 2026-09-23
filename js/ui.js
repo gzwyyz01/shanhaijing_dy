@@ -148,14 +148,35 @@ var SHUI = (function () {
     text('第 ' + G.year + ' 年 · ' + s.name + ' · 第 ' + G.day + ' 天 ' + modTxt, 12, L.top + 30, 12, C.dim);
   }
 
+  /* 资源栏显示列表：按解锁时间排序；未开始产出（无库存且无产出）隐藏 */
+  function visibleResKeys(rates) {
+    var order = ['linghe', 'wood', 'kittens', 'xueshi', 'stone', 'bronze',
+      'wuliang', 'shiban', 'tongban', 'xuantie', 'xuntie', 'xinghuishi', 'ruishou', 'hetuluoshu'];
+    var list = [];
+    for (var i = 0; i < order.length; i++) {
+      var k = order[i];
+      if (k === 'kittens') {                       // 族人：首座草庐后显示
+        if (App.G.bld.caolu >= 1) list.push('kittens');
+      } else if (k === 'linghe' || k === 'wood') { // 灵禾恒显；木料开局可精炼恒显
+        list.push(k);
+      } else if (k === 'xueshi') {                 // 学识：藏经阁建成后有来源
+        if (App.G.bld.cangjingge >= 1 || (App.G.res[k] || 0) > 0 || (rates[k] || 0) > 0) list.push(k);
+      } else {                                     // 其余：有库存或有产出才显示
+        if ((App.G.res[k] || 0) > 0 || (rates[k] || 0) > 0) list.push(k);
+      }
+    }
+    return list;
+  }
+
   function drawResources(L) {
     var rates = App.calcRates();
-    var keys = ['linghe', 'wood', 'stone', 'xueshi'];
+    var keys = visibleResKeys(rates);
     var cellW = W / keys.length;
     for (var i = 0; i < keys.length; i++) {
       var k = keys[i];
-      var v = App.G.res[k] || 0;
-      var max = App.getMax(k);
+      var isKitten = k === 'kittens';
+      var v = isKitten ? App.G.kittens : (App.G.res[k] || 0);
+      var max = isKitten ? App.getEffect('maxKittens') : App.getMax(k);
       var capTxt = isFinite(max) ? ' / ' + SHCore.fmt(max) : '';
       var rate = rates[k] || 0;
       var cls = rate > 0.0005 ? C.jade : (rate < -0.0005 ? C.red : C.dim);
@@ -188,7 +209,7 @@ var SHUI = (function () {
           ctx.fill();
         }
       }
-      text(SHCore.DATA.RES_DEF[k].title, cx + 10, L.resTop + 8, 11, i === 0 ? C.gold : C.dim, 'left', i === 0);
+      text(isKitten ? '族人' : SHCore.DATA.RES_DEF[k].title, cx + 10, L.resTop + 8, 11, i === 0 ? C.gold : C.dim, 'left', i === 0);
       // 数值+上限：自适应字号防止大数溢出窄格
       var fullTxt = SHCore.fmt(v) + capTxt;
       var fs = popping ? 16 : 15;
@@ -197,12 +218,20 @@ var SHUI = (function () {
       while (ctx.measureText(fullTxt).width > maxW && fs > 9) { fs -= 1; ctx.font = (popping ? 'bold ' : '') + fs + 'px sans-serif'; }
       text(fullTxt, cx + 10, L.resTop + 24, fs, popping ? C.gold : C.text, 'left', popping);
       // 速率：加大加粗 + ▲/▼ 方向箭头（绿涨红跌）；同样自适应字号
-      var arrow = rate > 0.0005 ? '▲ ' : (rate < -0.0005 ? '▼ ' : '');
-      var rateTxt = arrow + SHCore.fmtRate(rate);
+      var rateTxt, rCls;
+      if (isKitten) {   // 族人显示生息/挨饿状态
+        if (App.G.starving) { rateTxt = '▼ 挨饿中'; rCls = C.red; }
+        else if (v < max) { rateTxt = '▲ 繁衍生息'; rCls = C.jade; }
+        else { rateTxt = '· 人满为患'; rCls = C.dim; }
+      } else {
+        var arrow = rate > 0.0005 ? '▲ ' : (rate < -0.0005 ? '▼ ' : '');
+        rateTxt = arrow + SHCore.fmtRate(rate);
+        rCls = cls;
+      }
       var fs2 = 13;
       ctx.font = 'bold ' + fs2 + 'px sans-serif';
       while (ctx.measureText(rateTxt).width > maxW && fs2 > 9) { fs2 -= 1; ctx.font = 'bold ' + fs2 + 'px sans-serif'; }
-      text(rateTxt, cx + 10, L.resTop + 46, fs2, cls, 'left', true);
+      text(rateTxt, cx + 10, L.resTop + 46, fs2, rCls, 'left', true);
     }
   }
 
@@ -256,9 +285,14 @@ var SHUI = (function () {
   }
 
   function drawTabs(L) {
-    var tw = W / TABS.length;
-    for (var i = 0; i < TABS.length; i++) {
-      var t = TABS[i];
+    var vis = [];
+    for (var vi = 0; vi < TABS.length; vi++) {   // 渐进解锁：篝火恒显示，其余达成条件后显示
+      var tk = TABS[vi];
+      if (tk.key === 'bonfire' || App.G.tabUnlock[tk.key]) vis.push(tk);
+    }
+    var tw = W / vis.length;
+    for (var i = 0; i < vis.length; i++) {
+      var t = vis[i];
       var active = t.key === currentTab;
       ctx.fillStyle = active ? C.panel2 : C.panel;
       ctx.fillRect(i * tw, L.tabTop, tw, L.tabH);
@@ -275,6 +309,7 @@ var SHUI = (function () {
   }
 
   function drawContent(L) {
+    if (currentTab !== 'bonfire' && !App.G.tabUnlock[currentTab]) currentTab = 'bonfire';   // 未解锁页不可停留
     var top = L.contentTop;
     var h = L.contentBottom - L.contentTop;
     ctx.save();

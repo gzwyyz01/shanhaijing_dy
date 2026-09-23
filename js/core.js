@@ -270,6 +270,7 @@ function createGame() {
       effects: {}, log: [], seen: {},
       stat: {}, ach: {}, event: null,
       peakKittens: 0, peakDay: 1, peakSeason: 0, peakYear: 1,   // 历史巅峰族人及达成时刻（排行榜）
+      tabUnlock: {},   // 页签渐进解锁记录：达成条件即永久解锁
       lastSaveTick: 0, autosaveEvery: 400,
       starving: false
     };
@@ -340,6 +341,20 @@ function createGame() {
   function isResUnlocked(name) { var r = RES_DEF[name]; return !r.unlock || isTech(r.unlock); }
   function isCraftUnlocked(name) { var c = CRAFT_DEF[name]; return !c.unlock || c.unlock === 'start' || isTech(c.unlock); }
   function canAfford(p) { for (var k in p) { if ((G.res[k] || 0) < p[k]) return false; } return true; }
+
+  /* 页签渐进解锁判定：达成条件即永久置位（部族/典籍/炼器/轮回/功业） */
+  function updateTabUnlocks() {
+    if (G.bld.caolu >= 1) G.tabUnlock.village = true;                       // 部族：首座草庐
+    if (G.bld.cangjingge >= 1) G.tabUnlock.tech = true;                     // 典籍：首座藏经阁
+    for (var i = 0; i < CRAFT_ORDER.length; i++) {                         // 炼器：除精炼木料外任一炼器功能解锁
+      var k = CRAFT_ORDER[i];
+      if (k !== 'wood' && isCraftUnlocked(k)) { G.tabUnlock.craft = true; break; }
+    }
+    if (G.kittens >= 50) G.tabUnlock.prestige = true;                      // 轮回：族人达 50
+    for (var j = 0; j < ACH_ORDER.length; j++) {                           // 功业：完成任一成就
+      if (G.ach[ACH_ORDER[j]]) { G.tabUnlock.deeds = true; break; }
+    }
+  }
 
   function updateCaches() {
     var E = {};
@@ -640,7 +655,8 @@ function createGame() {
       speed: G.speed,
       seen: G.seen, log: G.log.slice(-80),
       stat: G.stat, ach: G.ach, event: G.event,
-      peakKittens: G.peakKittens, peakDay: G.peakDay, peakSeason: G.peakSeason, peakYear: G.peakYear
+      peakKittens: G.peakKittens, peakDay: G.peakDay, peakSeason: G.peakSeason, peakYear: G.peakYear,
+      tabUnlock: G.tabUnlock
     });
   }
   function apply(d) {
@@ -652,6 +668,7 @@ function createGame() {
     G.stat = shallow(d.stat || {}); G.ach = shallow(d.ach || {}); G.event = d.event || null;
     G.peakKittens = d.peakKittens || 0; G.peakDay = d.peakDay || 1;
     G.peakSeason = d.peakSeason || 0; G.peakYear = d.peakYear || 1;
+    G.tabUnlock = shallow(d.tabUnlock || {});
   }
   function shallow(o) { var r = {}; if (o) { for (var k in o) r[k] = o[k]; } return r; }
   function save() { try { storageSet(SAVE_KEY, serialize()); } catch (e) { /* ignore */ } }
@@ -886,6 +903,7 @@ function createGame() {
       calendarUpdate();
       eventUpdate();
       updateCaches();
+      updateTabUnlocks();
       // 产出/消耗/生育/饿死每天结算一次（与日期严格同步）：
       // 1 秒 = 1 天 = 结算一次，对齐猫国 1 tick = 1 天（避免 5 tick/秒 导致增速 5 倍）
       if (G.tick % DAY_TICKS === 0) {
