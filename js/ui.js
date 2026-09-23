@@ -420,15 +420,15 @@ var SHUI = (function () {
         dirty = true;
       }, { stroke: C.gold, color: C.gold });
     } });
-    // 精炼行（10 灵禾 → 1 木料）：灵田上方常驻
+    // 精炼行（100 灵禾 → 10 木料）：灵田上方常驻
     rows.push({ h: 68, draw: function (y) {
       rowPanel(10, y, W - 20, 60);
       text('精炼木料', 20, y + 10, 14, C.text, 'left', true);
-      text('100 灵禾 → 1 木料', 20, y + 34, 11.5, C.dim);
+      text('100 灵禾 → 10 木料', 20, y + 34, 11.5, C.dim);
       var can = (App.G.res.linghe || 0) >= 100;
       btn(W - 110, y + 28, 96, 26, '精炼', can, function () {
         App.craft('wood');
-        if (can) addFloat(W - 62, y + 24, '+1 木料', C.jade);
+        if (can) addFloat(W - 62, y + 24, '+10 木料', C.jade);
         dirty = true;
       }, {});
     } });

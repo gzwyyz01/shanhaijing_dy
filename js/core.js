@@ -71,7 +71,7 @@ var TECH_DEF = {
 
 var CRAFT_ORDER = ['wood', 'wuliang', 'shiban', 'tongban', 'xuantie'];
 var CRAFT_DEF = {
-  wood:    { title: '木料', desc: '精炼灵禾为木（100 灵禾 → 1 木料）', unlock: 'start', need: null, prices: { linghe: 100 } },
+  wood:    { title: '木料', desc: '精炼灵禾为木（100 灵禾 → 10 木料）', unlock: 'start', need: null, prices: { linghe: 100 }, yield: 10 },
   wuliang: { title: '屋梁', desc: '大木成梁', unlock: 'yingzaojing', need: ['lianqifang'], prices: { wood: 1750 } },
   shiban:  { title: '石板', desc: '凿石成板', unlock: 'yingzaojing', need: ['lianqifang'], prices: { stone: 2500 } },
   tongban: { title: '铜板', desc: '青铜锻板', unlock: 'zhuqijing', need: ['lianqifang'], prices: { bronze: 1250 } },
@@ -340,7 +340,7 @@ function createGame() {
     }
     if (!canAfford(c.prices)) return;
     for (var k in c.prices) G.res[k] -= c.prices[k];
-    G.res[name] = (G.res[name] || 0) + 1;
+    G.res[name] = (G.res[name] || 0) + (c.yield || 1);
   }
 
   function getQiyunPreview() { return Math.max(0, Math.floor(G.kittens - 70)); }
