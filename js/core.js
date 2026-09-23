@@ -12,7 +12,7 @@ var TPS = 5;
 var DAY_TICKS = 5;           // 1 天 = 5 tick（1 秒）→ 对齐原版节奏（原版约 1 天/秒，一年约 6-7 分钟）
 var TICKS_PER_DAY = 10;
 var DAYS_PER_SEASON = 100;
-var KITTEN_CONSUME = 8.5;     // 原版 0.85/t ×10：1 灵田(1.25/t) 养 0.147 人；灵农(10/t) 养 1.18 人，与原版同构
+var KITTEN_CONSUME = 8.5;     // 原版 0.85/t ×10：灵田(3/t) 3 座养 1 人（对齐原版 3 田养 1 猫）；灵农(10/t) 养 1.18 人
 var KITTEN_BIRTH_BASE = 0.01;    // 原版 0.01/t：约 20 秒 1 名新生儿
 var START_LINGHE = 0;   // 对齐原版：开局灵禾为 0，靠手动采集 + 灵田产出起步
 var STARTER = { lingTian: 0, caolu: 0, kittens: 0 };   // 对齐猫国：开局 0 田，手动采集攒 100 灵禾建第 1 座灵田
@@ -40,7 +40,7 @@ var RES_DEF = {
 
 var BLD_ORDER = ['lingTian', 'caolu', 'muliaoCang', 'linchang', 'cangjingge', 'liangcang', 'kuangdong', 'lianqifang', 'yelianlu'];
 var BLD_DEF = {
-  lingTian:  { title: '灵田', desc: '开垦沃土，灵禾自生', unlock: 'start', ratio: 1.12, prices: { linghe: 100 }, fx: { linghe: 1.25 } },
+  lingTian:  { title: '灵田', desc: '开垦沃土，灵禾自生', unlock: 'start', ratio: 1.12, prices: { linghe: 100 }, fx: { linghe: 3 } },
   caolu:     { title: '草庐', desc: '遮风避雨，族人安居（1 座 = 2 人口上限）', unlock: 'wood', ratio: 2.5,  prices: { wood: 50 }, fx: { maxKittens: 2 } },
   muliaoCang:{ title: '木料仓', desc: '贮存木料，以应营造（木料上限 +1000）', unlock: 'wood', ratio: 1.5, prices: { wood: 100 }, fx: { woodMax: 1000 } },
   linchang:  { title: '林场', desc: '入山采伐，林木不绝', unlock: 'lifa', ratio: 1.15, prices: { linghe: 400, wood: 300 }, fx: { wood: 0.5 } },
@@ -289,6 +289,7 @@ function createGame() {
         G.starveProgress -= 1;
         G.kittens = Math.max(0, Math.floor(G.kittens) - 1);
         G.kittenProgress = 0;
+        shrinkJobs();   // 族人饿死，岗位同步清退
         if (Math.random() < 0.05) log('灵禾断绝，族人饿殍遍野！');
       }
     }
@@ -322,6 +323,25 @@ function createGame() {
     total = total - cur + next;
     if (total > G.kittens) return;
     G.jobs[job] = next;
+    updateCaches();
+  }
+
+  // 饿死减员后收缩岗位：确保岗位总数 ≤ 存活族人（从职业列表末尾开始清退，对齐猫国）
+  function shrinkJobs() {
+    var k, total = 0;
+    for (k in G.jobs) total += G.jobs[k];
+    if (total <= G.kittens) return;
+    var need = total - G.kittens;
+    for (var i = JOB_ORDER.length - 1; i >= 0 && need > 0; i--) {
+      k = JOB_ORDER[i];
+      while (need > 0 && (G.jobs[k] || 0) > 0) { G.jobs[k]--; need--; }
+    }
+    if (need > 0) {   // 兜底：仍超额时清零剩余岗位
+      for (k in G.jobs) {
+        if (need <= 0) break;
+        if (G.jobs[k] > 0) { G.jobs[k] = 0; need--; }
+      }
+    }
     updateCaches();
   }
 
