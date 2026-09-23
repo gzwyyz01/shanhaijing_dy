@@ -231,7 +231,7 @@ function createGame() {
   }
 
   function getMax(res) {
-    if (res === 'linghe') return 1000 + getEffect('lingheMax');
+    if (res === 'linghe') return 5000 + getEffect('lingheMax');
     if (res === 'xueshi') return 1000 + getEffect('xueshiMax');
     if (res === 'wood') return 1000 + getEffect('woodMax');
     return Infinity;
