@@ -15,7 +15,7 @@ var DAYS_PER_SEASON = 100;
 var KITTEN_CONSUME = 8.5;     // 原版 0.85/t ×10：1 灵田(1.25/t) 养 0.147 人；灵农(10/t) 养 1.18 人，与原版同构
 var KITTEN_BIRTH_BASE = 0.01;    // 原版 0.01/t：约 20 秒 1 名新生儿
 var START_LINGHE = 0;   // 对齐原版：开局灵禾为 0，靠手动采集 + 灵田产出起步
-var STARTER = { lingTian: 1, caolu: 0, kittens: 0 };   // 开局仅 3 项：采集/精炼/灵田；草庐精炼出木料后解锁
+var STARTER = { lingTian: 0, caolu: 0, kittens: 0 };   // 对齐猫国：开局 0 田，手动采集攒 100 灵禾建第 1 座灵田
 
 /* ================= 1. 数据层 data/ ================= */
 var SEASONS = [
@@ -41,7 +41,7 @@ var RES_DEF = {
 var BLD_ORDER = ['lingTian', 'caolu', 'linchang', 'cangjingge', 'liangcang', 'kuangdong', 'lianqifang', 'yelianlu'];
 var BLD_DEF = {
   lingTian:  { title: '灵田', desc: '开垦沃土，灵禾自生', unlock: 'start', ratio: 1.12, prices: { linghe: 100 }, fx: { linghe: 1.25 } },
-  caolu:     { title: '草庐', desc: '遮风避雨，族人安居（1 座 = 2 人口上限）', unlock: 'wood', ratio: 2.5,  prices: { wood: 25 }, fx: { maxKittens: 2 } },
+  caolu:     { title: '草庐', desc: '遮风避雨，族人安居（1 座 = 2 人口上限）', unlock: 'wood', ratio: 2.5,  prices: { wood: 50 }, fx: { maxKittens: 2 } },
   linchang:  { title: '林场', desc: '入山采伐，林木不绝', unlock: 'lifa', ratio: 1.15, prices: { linghe: 400, wood: 300 }, fx: { wood: 0.5 } },
   cangjingge:{ title: '藏经阁', desc: '藏书之所，学识之源', unlock: 'wood', ratio: 1.15, prices: { wood: 250 }, fx: { xueshi: 2.5, xueshiMax: 500 } },
   liangcang: { title: '粮仓', desc: '储粮备荒，以度严冬（灵禾上限 +1500）', unlock: 'lifa', ratio: 1.75, prices: { wood: 500 }, fx: { lingheMax: 1500 } },
@@ -133,7 +133,7 @@ function createGame() {
   /* 存档版本：数值/开局机制调整时必须 +1。旧版本存档（含无版本号存档）
      将自动备份到 backup 并清空主档，重新开荒——保证新设备/新版本从 0 开始，
      避免旧数值存档与新版本不兼容导致死锁或"非从 0 开局" */
-  var SAVE_VERSION = 3;
+  var SAVE_VERSION = 4;   // v4：数值框架对齐猫国（开局 0 灵田、草庐 50 木），旧档备份后从 0 开荒
 
   function starterKit() {
     G.res.linghe = START_LINGHE;
