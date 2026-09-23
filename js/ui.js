@@ -216,8 +216,14 @@ var SHUI = (function () {
     var color = starving ? C.red : C.gold;
     var y = L.hintTop + 44;
     // 右侧操作按钮：入口有奖 / 日志 / 暂停 / 存档（放提示条，避开顶部模拟器悬浮调试条）
-    var bw = 42, bh = 24, gap = 6;
-    var sbW = sidebarAvail ? 70 : 0;   // 「入口有奖」仅侧边栏可用时显示
+    var bw = 42, bh = 24, gap = 4;
+    var sbW = sidebarAvail ? 64 : 0;   // 「入口有奖」仅侧边栏可用时显示
+    // 按钮行宽度自适应：窄屏自动收窄按钮，避免最左（加速）被挤出屏幕
+    var nBtn = 6;   // 存档/暂停/日志/排行/重开/加速
+    var gapCnt = nBtn + (sbW ? 1 : 0);
+    if (W - 10 - sbW - gapCnt * gap < nBtn * bw) {
+      bw = Math.max(30, Math.floor((W - 10 - sbW - gapCnt * gap) / nBtn));
+    }
     var bx = W - 10 - (sidebarAvail ? sbW : bw);
     if (sidebarAvail) {
       var pulse = 0.55 + 0.45 * Math.abs(Math.sin(Date.now() / 420));
@@ -236,6 +242,10 @@ var SHUI = (function () {
     btn(bx, L.hintTop + 2, bw, bh, '排行', true, openRankPanel, { stroke: C.jade, color: C.jade });
     bx -= bw + gap;
     btn(bx, L.hintTop + 2, bw, bh, '重开', true, askReset, { stroke: C.red, color: C.red });
+    bx -= bw + gap;
+    /* 加速开关（正式功能）：×1 ↔ ×2，放重开左边，开启后 1 秒 = 2 天 */
+    btn(bx, L.hintTop + 2, bw, bh, App.G.speed > 1 ? '已加速' : '加速', true, toggleSpeed2,
+        App.G.speed > 1 ? { stroke: C.jade, color: C.jade } : {});
     // 提示文本（截断到按钮左侧）
     var str = hint;
     ctx.font = '12px sans-serif';
@@ -547,8 +557,9 @@ var SHUI = (function () {
   function buildTechRows() {
     var D = SHCore.DATA;
     var rows = [];
-    for (var i = 0; i < D.TECH_ORDER.length; i++) {
-      var k = D.TECH_ORDER[i];
+    var list = App.getTechDisplayList();   // 渐进显示：已研 + 下一批候选
+    for (var i = 0; i < list.length; i++) {
+      var k = list[i];
       var t = D.TECH_DEF[k];
       if (App.G.techs[k]) {
         rows.push({ h: 46, draw: (function (t2) {
@@ -1082,6 +1093,19 @@ var SHUI = (function () {
     };
   }
   function toggleSpeed() { App.G.speed = App.G.speed === 1 ? 10 : 1; dirty = true; }
+  /* 正式加速开关：×1 ↔ ×2 */
+  function toggleSpeed2() {
+    App.G.speed = App.G.speed > 1 ? 1 : 2;
+    if (App.G.speed > 1) {
+      App.log('开启双倍速：时光流转加快，1 秒 = 2 天。');
+      addFloat(W / 2, safeTop + 96, '双倍速开启 ×2', C.jade, 15);
+    } else {
+      App.log('已关闭加速，恢复常速。');
+      addFloat(W / 2, safeTop + 96, '常速 ×1', C.dim, 15);
+    }
+    App.save();
+    dirty = true;
+  }
 
   function hitTest(p) {
     for (var i = buttons.length - 1; i >= 0; i--) {

@@ -577,6 +577,21 @@ function createGame() {
     updateCaches();
   }
 
+  /* 典籍渐进显示：已研全部 + 下一批候选（首批 1 个，之后每批 2 个；互斥方略对立已研则永久隐藏） */
+  function getTechDisplayList() {
+    var list = [], candidates = [], unlockedCount = 0;
+    for (var i = 0; i < TECH_ORDER.length; i++) {
+      var k = TECH_ORDER[i];
+      var t = TECH_DEF[k];
+      if (t.mutex && G.techs[t.mutex]) continue;   // 互斥治国方略：对立已研 → 本项隐藏
+      if (G.techs[k]) { unlockedCount++; list.push(k); }
+      else candidates.push(k);
+    }
+    var batch = unlockedCount === 0 ? 1 : 2;   // 首批仅 1 个候选，其后每批 2 个
+    for (var j = 0; j < candidates.length && j < batch; j++) list.push(candidates[j]);
+    return list;
+  }
+
   function research(name) {
     if (G.techs[name] || !techReqsMet(name)) return;
     var t = TECH_DEF[name];
@@ -622,6 +637,7 @@ function createGame() {
       tick: G.tick, day: G.day, season: G.season, year: G.year,
       res: G.res, bld: G.bld, jobs: G.jobs, techs: G.techs,
       kittens: G.kittens, kittenProgress: G.kittenProgress, qiyun: G.qiyun,
+      speed: G.speed,
       seen: G.seen, log: G.log.slice(-80),
       stat: G.stat, ach: G.ach, event: G.event,
       peakKittens: G.peakKittens, peakDay: G.peakDay, peakSeason: G.peakSeason, peakYear: G.peakYear
@@ -632,7 +648,7 @@ function createGame() {
     G.res = shallow(d.res); G.bld = shallow(d.bld); G.jobs = shallow(d.jobs);
     G.techs = shallow(d.techs); G.seen = shallow(d.seen);
     G.kittens = d.kittens || 0; G.kittenProgress = d.kittenProgress || 0;
-    G.qiyun = d.qiyun || 0; G.log = (d.log || []).slice();
+    G.qiyun = d.qiyun || 0; G.speed = d.speed || 1; G.log = (d.log || []).slice();
     G.stat = shallow(d.stat || {}); G.ach = shallow(d.ach || {}); G.event = d.event || null;
     G.peakKittens = d.peakKittens || 0; G.peakDay = d.peakDay || 1;
     G.peakSeason = d.peakSeason || 0; G.peakYear = d.peakYear || 1;
@@ -901,7 +917,7 @@ function createGame() {
     reincarnate: reincarnate, getQiyunPreview: getQiyunPreview,
     isBldUnlocked: isBldUnlocked, isJobUnlocked: isJobUnlocked,
     isResUnlocked: isResUnlocked, isCraftUnlocked: isCraftUnlocked,
-    isTech: isTech, techReqsMet: techReqsMet, updateCaches: updateCaches,
+    isTech: isTech, techReqsMet: techReqsMet, getTechDisplayList: getTechDisplayList, updateCaches: updateCaches,
     getPrice: getPrice, calcRates: calcRates, getMax: getMax,
     canAfford: canAfford, log: log,
     save: save, load: load, apply: apply, serialize: serialize,
