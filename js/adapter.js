@@ -201,6 +201,143 @@ function getDeviceId() {
   return v;
 }
 
+/* =====================================================================
+ * 激励视频广告（重开存档入口）——抖音端真实广告，浏览器预览模拟
+ * REWARD_AD_UNIT：在抖音开放平台「流量主」创建激励视频广告位后填入；
+ * 未创建时留空，tt 端 show() 会 fail → 视为未完整观看（不发放）。
+ * ===================================================================== */
+var REWARD_AD_UNIT = '';   // TODO: 替换为抖音开放平台创建的激励视频广告位 ID
+var _rvAd = null;
+function showRewardedAd(opts) {
+  var onDone = opts && opts.onDone;
+  if (!hasTT) {
+    // 浏览器预览：模拟 1.2 秒广告后视为完整观看
+    if (onDone) setTimeout(function () { onDone(true); }, 1200);
+    return;
+  }
+  try {
+    if (!_rvAd) {
+      _rvAd = tt.createRewardedVideoAd({ adUnitId: REWARD_AD_UNIT });
+      _rvAd.onClose(function (res) { if (onDone) onDone(!!(res && res.isEnded)); });
+      _rvAd.onError(function () { if (onDone) onDone(false); });
+    }
+    _rvAd.show().catch(function () {
+      _rvAd.load().then(function () { _rvAd.show(); }).catch(function () { if (onDone) onDone(false); });
+    });
+  } catch (e) { if (onDone) onDone(false); }
+}
+
+/* =====================================================================
+ * Banner 广告（日志 / 排行榜面板内展示）
+ * BANNER_AD_UNIT：抖音开放平台「流量主」创建 banner 广告位后填入；
+ * 未创建时留空，抖音端创建失败自动忽略（不影响游戏运行）。
+ * 浏览器预览端不展示（无原生广告组件）。
+ * ===================================================================== */
+var BANNER_AD_UNIT = '';   // TODO: 替换为抖音开放平台创建的 banner 广告位 ID
+var _banner = null;
+function showBanner() {
+  if (!hasTT) return;   // 预览端无原生 banner
+  if (_banner) { try { _banner.show(); } catch (e) { /* ignore */ } return; }
+  try {
+    var s = tt.getSystemInfoSync();
+    var bw = s.windowWidth || 320;
+    var bh = Math.round(bw * 0.156);   // banner 常见宽高比 ≈ 320:50
+    var safeBottom = (s.safeArea && s.screenHeight) ? (s.screenHeight - s.safeArea.bottom) : 0;
+    _banner = tt.createBannerAd({
+      adUnitId: BANNER_AD_UNIT,
+      style: { left: 0, top: (s.windowHeight || 640) - bh - safeBottom, width: bw }
+    });
+    _banner.onError(function () { /* 广告加载失败静默 */ });
+    _banner.show();
+  } catch (e) { /* ignore */ }
+}
+function hideBanner() {
+  if (_banner) { try { _banner.hide(); } catch (e) { /* ignore */ } }
+}
+
+/* =====================================================================
+ * KV 用户云存储（免费云存档方案）
+ *  - 抖音端：tt.setUserCloudStorage / tt.getUserCloudStorage /
+ *            tt.removeUserCloudStorage（按 openid 维度，跨设备天然同步）
+ *  - 浏览器预览端：localStorage 前缀模拟（前缀 CLOUD_KV_PREFIX）
+ *  - 平台限制：单条 key+value ≤1024 字节；每用户每游戏 ≤128 条；
+ *    value 必须为 string（core.js 负责分片 ≤950 字节/条）
+ * ===================================================================== */
+var CLOUD_KV_PREFIX = 'shj6_';
+function cloudKVWrite(items, cb) {
+  // items: [{key, value}]，key 不含前缀
+  if (!hasTT) {
+    try {
+      for (var i = 0; i < items.length; i++) {
+        localStorage.setItem(CLOUD_KV_PREFIX + items[i].key, String(items[i].value));
+      }
+    } catch (e) { if (cb) cb(e); return; }
+    if (cb) cb(null);
+    return;
+  }
+  try {
+    var list = [];
+    for (var j = 0; j < items.length; j++) list.push({ key: CLOUD_KV_PREFIX + items[j].key, value: String(items[j].value) });
+    tt.setUserCloudStorage({
+      KVDataList: list,
+      success: function () { if (cb) cb(null); },
+      fail: function (e) { if (cb) cb(e); }
+    });
+  } catch (e) { if (cb) cb(e); }
+}
+function cloudKVRead(keys, cb) {
+  // keys: 不含前缀；返回 {key: value}
+  if (!hasTT) {
+    var out = {};
+    try {
+      for (var i = 0; i < keys.length; i++) {
+        var v = localStorage.getItem(CLOUD_KV_PREFIX + keys[i]);
+        if (v !== null) out[keys[i]] = v;
+      }
+    } catch (e) { if (cb) cb(e); return; }
+    if (cb) cb(null, out);
+    return;
+  }
+  try {
+    var klist = [];
+    for (var j = 0; j < keys.length; j++) klist.push(CLOUD_KV_PREFIX + keys[j]);
+    tt.getUserCloudStorage({
+      keyList: klist,
+      success: function (r) {
+        var o = {};
+        if (r && r.KVDataList) {
+          for (var m = 0; m < r.KVDataList.length; m++) {
+            var it = r.KVDataList[m];
+            var k = it.key;
+            if (k && k.indexOf(CLOUD_KV_PREFIX) === 0) k = k.slice(CLOUD_KV_PREFIX.length);
+            o[k] = it.value;
+          }
+        }
+        if (cb) cb(null, o);
+      },
+      fail: function (e) { if (cb) cb(e); }
+    });
+  } catch (e) { if (cb) cb(e); }
+}
+function cloudKVRemove(keys, cb) {
+  if (!hasTT) {
+    try {
+      for (var i = 0; i < keys.length; i++) localStorage.removeItem(CLOUD_KV_PREFIX + keys[i]);
+    } catch (e) { if (cb) cb(e); return; }
+    if (cb) cb(null);
+    return;
+  }
+  try {
+    var klist = [];
+    for (var j = 0; j < keys.length; j++) klist.push(CLOUD_KV_PREFIX + keys[j]);
+    tt.removeUserCloudStorage({
+      keyList: klist,
+      success: function () { if (cb) cb(null); },
+      fail: function (e) { if (cb) cb(e); }
+    });
+  } catch (e) { if (cb) cb(e); }
+}
+
 var SHPlatform = {
   isTT: hasTT,
   createCanvas: createCanvas,
@@ -221,7 +358,15 @@ var SHPlatform = {
   storageGet: storageGet,
   storageSet: storageSet,
   httpJson: httpJson,
-  getDeviceId: getDeviceId
+  getDeviceId: getDeviceId,
+  showRewardedAd: showRewardedAd,
+  REWARD_AD_UNIT: REWARD_AD_UNIT,
+  showBanner: showBanner,
+  hideBanner: hideBanner,
+  BANNER_AD_UNIT: BANNER_AD_UNIT,
+  cloudKVWrite: cloudKVWrite,
+  cloudKVRead: cloudKVRead,
+  cloudKVRemove: cloudKVRemove
 };
 
 if (typeof module !== 'undefined' && module.exports) {

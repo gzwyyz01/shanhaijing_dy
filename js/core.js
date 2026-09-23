@@ -228,6 +228,24 @@ function fmtRate(n) {
 /* ================= 2.5 存档存储适配（tt / localStorage / 可注入） ================= */
 var _storageAdapter = null;
 function setStorageAdapter(impl) { _storageAdapter = impl; }
+/* 云 KV 适配（免费云存档）：由 adapter.js 的 SHPlatform 注入；测试可注入 mock */
+var _cloudAdapter = null;
+function setCloudAdapter(impl) { _cloudAdapter = impl; }
+function cloudKVWrite(items, cb) {
+  if (_cloudAdapter && _cloudAdapter.write) return _cloudAdapter.write(items, cb);
+  if (typeof SHPlatform !== 'undefined' && SHPlatform.cloudKVWrite) return SHPlatform.cloudKVWrite(items, cb);
+  if (cb) cb({ noAdapter: true });
+}
+function cloudKVRead(keys, cb) {
+  if (_cloudAdapter && _cloudAdapter.read) return _cloudAdapter.read(keys, cb);
+  if (typeof SHPlatform !== 'undefined' && SHPlatform.cloudKVRead) return SHPlatform.cloudKVRead(keys, cb);
+  if (cb) cb({ noAdapter: true });
+}
+function cloudKVRemove(keys, cb) {
+  if (_cloudAdapter && _cloudAdapter.remove) return _cloudAdapter.remove(keys, cb);
+  if (typeof SHPlatform !== 'undefined' && SHPlatform.cloudKVRemove) return SHPlatform.cloudKVRemove(keys, cb);
+  if (cb) cb({ noAdapter: true });
+}
 function storageGet(k) {
   if (_storageAdapter) return _storageAdapter.get(k);
   if (typeof tt !== 'undefined') { try { return tt.getStorageSync(k); } catch (e) { return null; } }
@@ -242,24 +260,44 @@ function storageSet(k, v) {
 
 /* ================= 3. 游戏工厂 core+managers/ ================= */
 function createGame() {
-  var G = {
-    running: true,
-    speed: 1,
-    tick: 0, day: 1, season: 0, year: 1,
-    res: {}, bld: {}, jobs: {}, techs: {},
-    kittens: 0, kittenProgress: 0, qiyun: 0, starveProgress: 0,
-    effects: {}, log: [], seen: {},
-    stat: {}, ach: {}, event: null,
-    peakKittens: 0, peakDay: 1, peakSeason: 0, peakYear: 1,   // 历史巅峰族人及达成时刻（排行榜）
-    lastSaveTick: 0, autosaveEvery: 400,
-    starving: false
-  };
+  function newState() {
+    return {
+      running: true,
+      speed: 1,
+      tick: 0, day: 1, season: 0, year: 1,
+      res: {}, bld: {}, jobs: {}, techs: {},
+      kittens: 0, kittenProgress: 0, qiyun: 0, starveProgress: 0,
+      effects: {}, log: [], seen: {},
+      stat: {}, ach: {}, event: null,
+      peakKittens: 0, peakDay: 1, peakSeason: 0, peakYear: 1,   // 历史巅峰族人及达成时刻（排行榜）
+      lastSaveTick: 0, autosaveEvery: 400,
+      starving: false
+    };
+  }
+  var G = newState();
   var SAVE_KEY = 'shanhajing_save_v1';
   var BACKUP_KEY = 'shanhajing_save_backup';
   /* 存档版本：数值/开局机制调整时必须 +1。旧版本存档（含无版本号存档）
      将自动备份到 backup 并清空主档，重新开荒——保证新设备/新版本从 0 开始，
      避免旧数值存档与新版本不兼容导致死锁或"非从 0 开局" */
-  var SAVE_VERSION = 5;   // v5：P2 一界完整（新增 4 资源 / 23 建筑 / 5 职业 / 24 典籍 / 事件 / 成就），旧档备份后从 0 开荒
+  var SAVE_VERSION = 6;   // v6：多档位存档（档位1自动存档免费保留，档位2-10看广告解锁），旧档迁入档位1后从 0 开荒
+
+  /* 彻底清档重开（激励视频广告完整观看后调用）：
+     删除主存档（保留备份防误操作）+ 重建全新状态，从 0 开荒 */
+  function resetAll() {
+    if (_storageAdapter && _storageAdapter.del) _storageAdapter.del(SAVE_KEY);
+    if (typeof tt !== 'undefined') { try { tt.removeStorageSync(SAVE_KEY); } catch (e) {} }
+    if (_storageAdapter && _storageAdapter.del) _storageAdapter.del(SLOTS_KEY);
+    if (typeof tt !== 'undefined') { try { tt.removeStorageSync(SLOTS_KEY); } catch (e) {} }
+    var fresh = newState();
+    /* 就地替换：G 对象引用被 App.G 等外部持有，直接重建会丢引用，须清空后回填 */
+    for (var k in G) delete G[k];
+    for (var k2 in fresh) G[k2] = fresh[k2];
+    starterKit();
+    updateCaches();
+    log('旧档已清，开天辟地，洪荒初开。');
+    return true;
+  }
 
   function starterKit() {
     G.res.linghe = START_LINGHE;
@@ -434,8 +472,11 @@ function createGame() {
     }
   }
 
-  // 事件系统：每天一次——已有事件倒计时，无事件则按概率触发
+  // 事件系统：与日期严格同步——仅在推进 1 天时判定一次（避免加速时倒计时快于天数）；
+  // 研《历法》后方可观天象、知异动（对齐猫国：事件在文明开化后出现，开局无事件、无赠礼）
   function eventUpdate() {
+    if (G.tick % DAY_TICKS !== 0) return;
+    if (!G.techs.lifa) return;
     if (G.event) {
       G.event.remain--;
       if (G.event.remain <= 0) { G.event = null; updateCaches(); }
@@ -447,7 +488,14 @@ function createGame() {
       if (e.season !== undefined && e.season !== G.season) continue;
       if (Math.random() < e.prob) {
         G.event = { id: id, remain: e.dur || 1 };
-        if (e.gain) { for (var k in e.gain) G.res[k] = (G.res[k] || 0) + e.gain[k]; }
+        if (e.gain) {
+          for (var k in e.gain) {
+            var nv = (G.res[k] || 0) + e.gain[k];
+            var mx = getMax(k);
+            if (isFinite(mx) && nv > mx) nv = mx;   // 事件奖励不突破仓库上限
+            G.res[k] = nv;
+          }
+        }
         log('【' + e.title + '】' + e.text);
         updateCaches();
         break;
@@ -592,14 +640,90 @@ function createGame() {
   function shallow(o) { var r = {}; if (o) { for (var k in o) r[k] = o[k]; } return r; }
   function save() { try { storageSet(SAVE_KEY, serialize()); } catch (e) { /* ignore */ } }
   function backupSave() { try { storageSet(BACKUP_KEY, serialize()); } catch (e) { /* ignore */ } }
+  /* v6 多档位存档：档位1 = 主档（自动/快速存档，预设保留空间，免费）；
+     档位2-10 = 扩展档位（首次使用需观看激励广告解锁，解锁后永久保留） */
+  var SLOTS_KEY = 'shanhajing_saves_v2';
+  var UNLOCK_KEY = 'shanhajing_slot_unlock';
+  function _slotsData() {
+    try { var s = storageGet(SLOTS_KEY); if (s) { var d = JSON.parse(s); if (d && d.slots) return d; } } catch (e) { /* ignore */ }
+    return { v: 6, slots: {} };
+  }
+  function _unlockData() {
+    try { var s = storageGet(UNLOCK_KEY); if (s) { var d = JSON.parse(s); if (d && typeof d === 'object') return d; } } catch (e) { /* ignore */ }
+    return {};
+  }
+  function saveToSlot(n) {
+    n = Math.max(1, Math.min(10, n | 0));
+    if (n === 1) { save(); return true; }
+    if (!isSlotUnlocked(n)) return false;   // 未解锁不可写（UI 负责引导看广告解锁）
+    var d = _slotsData();
+    d.slots[n] = serialize();
+    try { storageSet(SLOTS_KEY, JSON.stringify(d)); } catch (e) { /* ignore */ }
+    return true;
+  }
+  function loadSlot(n) {
+    n = Math.max(1, Math.min(10, n | 0));
+    var s = null;
+    if (n === 1) {
+      s = storageGet(SAVE_KEY);
+      if (!s) { var d0 = _slotsData(); if (d0.slots[1]) s = d0.slots[1]; }   // 旧档迁移场景：主档为空时回退容器档位1
+    }
+    else {
+      if (!isSlotUnlocked(n)) return false;
+      var d = _slotsData();
+      if (d.slots[n]) s = d.slots[n];
+    }
+    if (!s) return false;
+    try {
+      var dd = JSON.parse(s);
+      migrate(dd); apply(dd); return true;
+    } catch (e) { return false; }
+  }
+  function isSlotUnlocked(n) {
+    n = Math.max(1, Math.min(10, n | 0));
+    if (n === 1) return true;   // 预设保留档，免费
+    var u = _unlockData();
+    return !!u[n];
+  }
+  function unlockSlot(n) {
+    n = Math.max(2, Math.min(10, n | 0));
+    var u = _unlockData();
+    u[n] = true;
+    try { storageSet(UNLOCK_KEY, JSON.stringify(u)); } catch (e) { /* ignore */ }
+    return true;
+  }
+  function getSlots() {
+    var d = _slotsData();
+    var out = {};
+    for (var i = 1; i <= 10; i++) {
+      var raw = null;
+      if (i === 1) {
+        raw = storageGet(SAVE_KEY);
+        if (!raw && d.slots[1]) raw = d.slots[1];   // 旧档迁移场景：主档为空时读容器档位1
+      }
+      else if (d.slots[i]) raw = d.slots[i];
+      if (raw) {
+        try {
+          var dd = JSON.parse(raw);
+          out[i] = { has: true, year: dd.year || 1, season: dd.season || 0, day: dd.day || 1, kittens: Math.floor(dd.kittens || 0), peakKittens: Math.floor(dd.peakKittens || dd.kittens || 0) };
+        } catch (e) { out[i] = { has: false }; }
+      } else { out[i] = { has: false }; }
+    }
+    return out;
+  }
   function load() {
     try {
       var s = storageGet(SAVE_KEY);
       if (s) {
         var d = JSON.parse(s);
-        // 版本校验：不匹配（旧档/无版本号）→ 备份旧档、清空主档，重新开荒
+        // 版本校验：不匹配（旧档/无版本号）→ 备份旧档；旧版合法档迁入档位1保留，
+        // 当前从 0 开荒（新版本从 0 开局，旧档可在「存档/读档」面板恢复）
         if (!d || d.v !== SAVE_VERSION) {
           try { storageSet(BACKUP_KEY, s); } catch (e) { /* ignore */ }
+          if (d && typeof d === 'object' && typeof d.res === 'object') {
+            var sd = _slotsData();
+            if (!sd.slots[1]) { sd.slots[1] = s; try { storageSet(SLOTS_KEY, JSON.stringify(sd)); } catch (e2) { /* ignore */ } }
+          }
           try { storageSet(SAVE_KEY, ''); } catch (e) { /* ignore */ }
           return false;
         }
@@ -609,6 +733,136 @@ function createGame() {
     return false;
   }
 
+  /* =====================================================================
+   * KV 云存档（免费方案：tt.setUserCloudStorage，openid 维度，跨设备）
+   *  - 平台限制：单条 key+value ≤1024 字节 → 存档按 UTF-8 字节分片（≤950/片）
+   *  - 云端结构：meta（档位清单/片数/时间/解锁）+ 每档若干分片
+   *  - 上传=本地全量覆盖云端；下载=按 meta 重组写回本地（SAVE_KEY/SLOTS/UNLOCK）
+   * ===================================================================== */
+  var CLOUD_META_KEY = 'm';
+  var CLOUD_SLOT_PREFIX = 's';   // key 形如 s1_0 / smain_2
+  var CLOUD_PART_BYTES = 950;
+  function _utf8Bytes(s) {
+    var b = 0;
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charCodeAt(i);
+      if (c < 0x80) b += 1;
+      else if (c < 0x800) b += 2;
+      else if (c >= 0xD800 && c <= 0xDFFF) { i++; b += 4; }   // 代理对（emoji/生僻字）
+      else b += 3;
+    }
+    return b;
+  }
+  function _splitParts(s, maxBytes) {
+    var parts = [], cur = '', curLen = 0;
+    for (var i = 0; i < s.length; i++) {
+      var ch = s[i], bl = _utf8Bytes(ch);
+      if (ch.charCodeAt(0) >= 0xD800 && ch.charCodeAt(0) <= 0xDBFF && i + 1 < s.length) {
+        ch = s.slice(i, i + 2); bl = 4; i++;
+      }
+      if (curLen + bl > maxBytes && cur) { parts.push(cur); cur = ch; curLen = bl; }
+      else { cur += ch; curLen += bl; }
+    }
+    if (cur) parts.push(cur);
+    return parts;
+  }
+  function _cloudExport() {
+    /* 打包本地全部档位：主档(档位1=SAVE_KEY) + 容器档位2-10 + 解锁权益 */
+    var payload = { main: storageGet(SAVE_KEY) || null, slots: {}, unlock: {} };
+    var d = _slotsData();
+    for (var n in d.slots) if (d.slots[n]) payload.slots[n] = d.slots[n];
+    var u = _unlockData();
+    for (var k in u) if (u[k]) payload.unlock[k] = true;
+    return payload;
+  }
+  function cloudUpload(cb) {
+    var payload = _cloudExport();
+    var meta = { v: 1, t: Date.now(), parts: {}, unlock: [] };
+    var items = [];
+    var entries = [];
+    if (payload.main) entries.push({ id: 'main', raw: String(payload.main) });
+    for (var n in payload.slots) if (payload.slots[n]) entries.push({ id: String(n), raw: String(payload.slots[n]) });
+    for (var i = 0; i < entries.length; i++) {
+      var parts = _splitParts(entries[i].raw, CLOUD_PART_BYTES);
+      meta.parts[entries[i].id] = parts.length;
+      for (var j = 0; j < parts.length; j++) items.push({ key: CLOUD_SLOT_PREFIX + entries[i].id + '_' + j, value: parts[j] });
+    }
+    var uk = [];
+    for (var k2 in payload.unlock) if (payload.unlock[k2]) uk.push(k2);
+    meta.unlock = uk;
+    items.push({ key: CLOUD_META_KEY, value: JSON.stringify(meta) });
+    _cloudWriteBatch(items, 0, cb);
+  }
+  function _cloudWriteBatch(items, idx, cb) {
+    if (idx >= items.length) { if (cb) cb(null); return; }
+    var batch = items.slice(idx, idx + 10);   // 分批写入，避免单次 KVDataList 过大
+    cloudKVWrite(batch, function (err) {
+      if (err) { if (cb) cb(err); return; }
+      _cloudWriteBatch(items, idx + 10, cb);
+    });
+  }
+  function cloudGetInfo(cb) {
+    /* 只读云端 meta（无云端数据时返回 null） */
+    cloudKVRead([CLOUD_META_KEY], function (err, kv) {
+      if (err) { if (cb) cb(err, null); return; }
+      if (!kv || !kv[CLOUD_META_KEY]) { if (cb) cb(null, null); return; }
+      var meta = null;
+      try { meta = JSON.parse(kv[CLOUD_META_KEY]); } catch (e) { /* ignore */ }
+      if (cb) cb(null, meta);
+    });
+  }
+  function cloudHasData(cb) {
+    cloudGetInfo(function (err, meta) { if (cb) cb(!!meta); });
+  }
+  function cloudDownload(cb) {
+    /* 读 meta → 拉全部分片 → 重组 → 写回本地 SAVE_KEY / SLOTS_KEY / UNLOCK_KEY */
+    cloudGetInfo(function (err, meta) {
+      if (err) { if (cb) cb(err); return; }
+      if (!meta || !meta.parts) { if (cb) cb({ empty: true }); return; }
+      var keys = [];
+      for (var id in meta.parts) {
+        for (var i = 0; i < meta.parts[id]; i++) keys.push(CLOUD_SLOT_PREFIX + id + '_' + i);
+      }
+      cloudKVRead(keys, function (err2, kv) {
+        if (err2) { if (cb) cb(err2); return; }
+        var rebuilt = {};
+        for (var id2 in meta.parts) {
+          var raw = '';
+          for (var j = 0; j < meta.parts[id2]; j++) {
+            var v = kv[CLOUD_SLOT_PREFIX + id2 + '_' + j];
+            if (v === undefined) { if (cb) cb({ corrupt: true, id: id2 }); return; }
+            raw += v;
+          }
+          rebuilt[id2] = raw;
+        }
+        /* 写回本地：主档 → SAVE_KEY；其余档位 → SLOTS_KEY；解锁 → UNLOCK_KEY */
+        var sd = { v: 6, slots: {} };
+        for (var id3 in rebuilt) {
+          if (id3 === 'main') { try { storageSet(SAVE_KEY, rebuilt.main); } catch (e) { /* ignore */ } }
+          else if (/^\d+$/.test(id3)) sd.slots[id3] = rebuilt[id3];
+        }
+        try { storageSet(SLOTS_KEY, JSON.stringify(sd)); } catch (e) { /* ignore */ }
+        var un = {};
+        if (meta.unlock) for (var m = 0; m < meta.unlock.length; m++) un[meta.unlock[m]] = true;
+        try { storageSet(UNLOCK_KEY, JSON.stringify(un)); } catch (e) { /* ignore */ }
+        if (cb) cb(null, meta);
+      });
+    });
+  }
+  function cloudClear(cb) {
+    /* 清空云端存档：先读 meta 拿到全部 key，再逐个删除 */
+    cloudGetInfo(function (err, meta) {
+      var keys = [];
+      if (!err && meta && meta.parts) {
+        for (var id in meta.parts) {
+          for (var i = 0; i < meta.parts[id]; i++) keys.push(CLOUD_SLOT_PREFIX + id + '_' + i);
+        }
+      }
+      keys.push(CLOUD_META_KEY);
+      cloudKVRemove(keys, function (e) { if (cb) cb(e || null); });
+    });
+  }
+
   function tick() {
     if (!G.running) return;
     var i;
@@ -616,10 +870,14 @@ function createGame() {
       calendarUpdate();
       eventUpdate();
       updateCaches();
-      resourcesUpdate();
-      villageUpdate();
+      // 产出/消耗/生育/饿死每天结算一次（与日期严格同步）：
+      // 1 秒 = 1 天 = 结算一次，对齐猫国 1 tick = 1 天（避免 5 tick/秒 导致增速 5 倍）
+      if (G.tick % DAY_TICKS === 0) {
+        resourcesUpdate();
+        villageUpdate();
+      }
       peakUpdate();
-      if (G.tick % 10 === 0) achUpdate();
+      if (G.tick % (DAY_TICKS * 10) === 0) achUpdate();
     }
     if (G.tick - G.lastSaveTick >= G.autosaveEvery) {
       G.lastSaveTick = G.tick;
@@ -639,6 +897,7 @@ function createGame() {
   return {
     G: G, init: init, tick: tick, migrate: migrate,
     build: build, setJob: setJob, research: research, craft: craft, gather: gather,
+    resetAll: resetAll,
     reincarnate: reincarnate, getQiyunPreview: getQiyunPreview,
     isBldUnlocked: isBldUnlocked, isJobUnlocked: isJobUnlocked,
     isResUnlocked: isResUnlocked, isCraftUnlocked: isCraftUnlocked,
@@ -646,7 +905,11 @@ function createGame() {
     getPrice: getPrice, calcRates: calcRates, getMax: getMax,
     canAfford: canAfford, log: log,
     save: save, load: load, apply: apply, serialize: serialize,
-    backupSave: backupSave, getEffect: getEffect
+    backupSave: backupSave, getEffect: getEffect,
+    saveToSlot: saveToSlot, loadSlot: loadSlot, getSlots: getSlots,
+    isSlotUnlocked: isSlotUnlocked, unlockSlot: unlockSlot,
+    cloudUpload: cloudUpload, cloudDownload: cloudDownload,
+    cloudClear: cloudClear, cloudHasData: cloudHasData, cloudGetInfo: cloudGetInfo
   };
 }
 
@@ -657,6 +920,7 @@ var SHCore = {
   fmt: fmt,
   fmtRate: fmtRate,
   setStorageAdapter: setStorageAdapter,
+  setCloudAdapter: setCloudAdapter,
   DATA: { RES_ORDER: RES_ORDER, RES_DEF: RES_DEF, BLD_ORDER: BLD_ORDER, BLD_DEF: BLD_DEF, JOB_ORDER: JOB_ORDER, JOB_DEF: JOB_DEF, TECH_ORDER: TECH_ORDER, TECH_DEF: TECH_DEF, CRAFT_ORDER: CRAFT_ORDER, CRAFT_DEF: CRAFT_DEF, EVENT_ORDER: EVENT_ORDER, EVENT_DEF: EVENT_DEF, ACH_ORDER: ACH_ORDER, ACH_DEF: ACH_DEF, SEASONS: SEASONS, KITTEN_CONSUME: KITTEN_CONSUME }
 };
 

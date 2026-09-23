@@ -36,9 +36,13 @@ var SHUI = (function () {
   var SIDEBAR_GIFT = { linghe: 500, wood: 10 };  // 每日礼包内容
   /* 部族巅峰榜（排行榜）状态 */
   var rankPanel = null;        // { list, total, loading, error }
+  var savePanel = null;        // 多档位存档 / 读档面板
   var lastPeakSent = -1;       // 已成功上报的巅峰值（防重复提交）
   var lastPeakNoticed = -1;    // 已提示过的巅峰值（新巅峰飘字）
   var rankFrameCount = 0;
+  /* KV 云存档状态（免费云存档） */
+  var cloudInfo = null;        // 云端 meta 缓存（null=无云端数据）
+  var cloudInfoChecked = false;
 
   var C = {
     bg: '#0e1420', panel: '#17202f', panel2: '#1d2738', border: '#2a3950',
@@ -230,6 +234,8 @@ var SHUI = (function () {
     btn(bx, L.hintTop + 2, bw, bh, '日志', true, showLogModal, {});
     bx -= bw + gap;
     btn(bx, L.hintTop + 2, bw, bh, '排行', true, openRankPanel, { stroke: C.jade, color: C.jade });
+    bx -= bw + gap;
+    btn(bx, L.hintTop + 2, bw, bh, '重开', true, askReset, { stroke: C.red, color: C.red });
     // 提示文本（截断到按钮左侧）
     var str = hint;
     ctx.font = '12px sans-serif';
@@ -297,8 +303,9 @@ var SHUI = (function () {
     drawTabs(L);
     drawContent(L);
     drawDevBar(L);
-    drawModal();
     drawRankPanel(L);
+    drawSavePanel(L);
+    drawModal();   // modal 永远最顶层（解锁/确认弹窗不被面板遮挡）
     drawFloats();
   }
 
@@ -715,7 +722,8 @@ var SHUI = (function () {
       var e = G.log[i];
       lines.push(e.year + '年 ' + e.text);
     }
-    modal = { title: '部落日志（近 ' + n + ' 条）', text: lines.join('\n'), okText: '关闭', cancel: false, onOk: null, tall: true };
+    modal = { title: '部落日志（近 ' + n + ' 条）', text: lines.join('\n'), okText: '关闭', cancel: false, onOk: function () { Platform.hideBanner(); }, tall: true };
+    Platform.showBanner();   // 日志面板内展示 banner 广告
   }
 
   /* ---------- 侧边栏复访每日礼包（必接能力） ---------- */
@@ -786,6 +794,7 @@ var SHUI = (function () {
   function openRankPanel() {
     rankPanel = { list: [], total: 0, loading: true, error: '' };
     loadRank();
+    Platform.showBanner();   // 排行榜面板内展示 banner 广告
     dirty = true;
   }
   function loadRank() {
@@ -834,7 +843,7 @@ var SHUI = (function () {
       if (rankPanel.total > rows.length) text('… 共 ' + rankPanel.total + ' 位部族上榜', mx + 14, my + mh - 46, 11.5, C.dim);
     }
     btn(mx + mw - 100, my + mh - 40, 44, 28, '刷新', true, function () { rankPanel.loading = true; rankPanel.error = ''; loadRank(); }, {});
-    btn(mx + mw - 50, my + mh - 40, 40, 28, '关闭', true, function () { rankPanel = null; dirty = true; }, { stroke: C.gold, color: C.gold });
+    btn(mx + mw - 50, my + mh - 40, 40, 28, '关闭', true, function () { rankPanel = null; Platform.hideBanner(); dirty = true; }, { stroke: C.gold, color: C.gold });
   }
   /* 巅峰上报：新巅峰即时飘字 + 防抖提交（仅在新峰值时 POST） */
   function uploadPeakIfNeeded(L) {
@@ -859,7 +868,219 @@ var SHUI = (function () {
     dirty = true;
   }
   function togglePause() { App.G.running = !App.G.running; dirty = true; }
-  function doSave() { App.save(); App.log('已手动存档。'); Platform.showToast('已存档'); dirty = true; }
+  function doSave() { openSavePanel(); }
+
+  /* ---------- 多档位存档 / 读档面板（档位1免费保留，档位2-10看广告解锁） ---------- */
+  function openSavePanel() { savePanel = {}; refreshCloudInfo(); dirty = true; }
+  function drawSavePanel(L) {
+    if (!savePanel) return;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, 0, W, H);
+    var mw = Math.min(340, W - 24);
+    var mh = Math.min(H - 24, 64 + 10 * 44 + 48 + 52);
+    var mx = (W - mw) / 2, my = Math.max(8, (H - mh) / 2);
+    roundRect(mx, my, mw, mh, 10);
+    ctx.fillStyle = C.panel2; ctx.fill();
+    ctx.strokeStyle = C.border; ctx.lineWidth = 1; ctx.stroke();
+    text('存档 / 读档', mx + 14, my + 10, 16, C.gold, 'left', true);
+    text('档位1为自动存档（免费保留）；档位2-10首次使用需观看激励广告解锁。', mx + 14, my + 32, 10.5, C.dim);
+    var slots = App.getSlots();
+    var rowY = my + 52, rowH = 44;
+    for (var i = 1; i <= 10; i++) {
+      var s = slots[i];
+      var yy = rowY + (i - 1) * rowH;
+      var locked = i > 1 && !App.isSlotUnlocked(i);
+      ctx.fillStyle = (i % 2) ? '#182232' : '#1d2738';
+      ctx.fillRect(mx + 8, yy, mw - 16, rowH - 4);
+      text('档位 ' + i, mx + 14, yy + 6, 13, locked ? C.dim : C.gold, 'left', true);
+      if (locked) {
+        text('🔒 未解锁 · 看广告解锁', mx + 14, yy + 24, 10.5, C.dim);
+      } else if (s && s.has) {
+        text('第' + s.year + '年·' + seasonName(s.season) + '·第' + s.day + '天 · 族人' + s.kittens + '（巅峰' + s.peakKittens + '）', mx + 14, yy + 24, 10, C.text);
+      } else {
+        text('（空档位）', mx + 14, yy + 24, 10.5, C.dim);
+      }
+      btn(mx + mw - 86, yy + 7, 34, 30, '存档', true, (function (n) { return function () { saveToSlotUI(n); }; })(i), {});
+      btn(mx + mw - 48, yy + 7, 34, 30, '读档', true, (function (n) { return function () { loadSlotUI(n); }; })(i), locked ? {} : { stroke: C.gold, color: C.gold });
+    }
+    /* 云存档行：状态 + 上传 / 下载 / 清除 */
+    var ctxt = '云端存档：';
+    if (!cloudInfoChecked) ctxt += '查询中…';
+    else if (!cloudInfo) ctxt += '无（未上传）';
+    else ctxt += _fmtTime(cloudInfo.t) + ' · ' + _cloudSlotCount(cloudInfo) + ' 档';
+    text(ctxt, mx + 14, my + mh - 86, 10.5, cloudInfo ? C.jade : C.dim);
+    btn(mx + 8, my + mh - 44, 72, 30, '上传云端', true, cloudUploadUI, {});
+    btn(mx + 84, my + mh - 44, 72, 30, '下载云端', true, cloudDownloadUI, { stroke: C.blue, color: C.blue });
+    btn(mx + 160, my + mh - 44, 72, 30, '清除云端', true, cloudClearUI, { danger: true });
+    btn(mx + mw - 48, my + mh - 44, 40, 30, '关闭', true, function () { savePanel = null; dirty = true; }, { stroke: C.gold, color: C.gold });
+  }
+  /* ---------- KV 云存档（免费，openid 维度跨设备） ---------- */
+  function _fmtTime(t) {
+    var d = new Date(t || 0);
+    var mo = d.getMonth() + 1, dd = d.getDate();
+    var hh = d.getHours(), mm = d.getMinutes();
+    return mo + '-' + dd + ' ' + (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
+  }
+  function _cloudSlotCount(meta) {
+    if (!meta || !meta.parts) return 0;
+    var n = 0;
+    for (var k in meta.parts) { if (meta.parts[k] > 0 && k !== 'main') n++; }
+    if (meta.parts.main) n++;
+    return n;
+  }
+  function refreshCloudInfo() {
+    cloudInfoChecked = false;
+    cloudInfo = null;
+    dirty = true;
+    if (!App.cloudGetInfo) { cloudInfoChecked = true; return; }
+    App.cloudGetInfo(function (err, meta) {
+      cloudInfo = meta || null;
+      cloudInfoChecked = true;
+      dirty = true;
+    });
+  }
+  function cloudUploadUI() {
+    modal = {
+      title: '上传云端存档',
+      text: '将本地全部档位（含解锁权益）上传并覆盖云端存档。换设备登录同一抖音号即可恢复。是否继续？',
+      okText: '上传',
+      cancel: true,
+      onOk: function () {
+        App.cloudUpload(function (err) {
+          if (err) { Platform.showToast('上传失败'); return; }
+          refreshCloudInfo();
+          Platform.showToast('已上传云端');
+          App.log('已将全部档位上传云端。');
+          dirty = true;
+        });
+      },
+      onCancel: null
+    };
+  }
+  function cloudDownloadUI() {
+    App.cloudGetInfo(function (err, meta) {
+      if (err || !meta) { Platform.showToast('云端无存档'); return; }
+      modal = {
+        title: '下载云端存档',
+        text: '将用云端存档覆盖本地全部档位（当前进度会先自动存档到档位1）。是否继续？',
+        okText: '下载并恢复',
+        cancel: true,
+        onOk: function () {
+          App.save();   // 当前进度先入档位1
+          App.cloudDownload(function (err2) {
+            if (err2) { Platform.showToast('下载失败'); return; }
+            App.load();   // 应用云端主档
+            lastRes = {}; resPop = {};
+            floats = [];
+            scrollY = 0; currentTab = 'bonfire';
+            savePanel = null;
+            refreshCloudInfo();
+            App.log('已从云端恢复存档。');
+            Platform.showToast('已从云端恢复');
+            dirty = true;
+          });
+        },
+        onCancel: null
+      };
+    });
+  }
+  function cloudClearUI() {
+    modal = {
+      title: '清除云端存档',
+      text: '将删除云端全部存档（本地存档不受影响）。是否继续？',
+      okText: '清除',
+      cancel: true,
+      onOk: function () {
+        App.cloudClear(function (err) {
+          refreshCloudInfo();
+          Platform.showToast('云端已清空');
+          dirty = true;
+        });
+      },
+      onCancel: null
+    };
+  }
+
+  /* 解锁档位（2-10）：先看激励广告，完整观看才永久解锁 */
+  function ensureSlotUnlock(n, cb) {
+    if (n === 1 || App.isSlotUnlocked(n)) { cb(); return; }
+    modal = {
+      title: '解锁档位 ' + n,
+      text: '档位 ' + n + ' 未解锁。观看一段激励视频广告即可永久解锁该档位（解锁后可反复存档 / 读档）。',
+      okText: '观看广告解锁',
+      cancel: true,
+      onOk: function () {
+        Platform.showRewardedAd({
+          onDone: function (watched) {
+            if (watched) { App.unlockSlot(n); dirty = true; cb(); }
+            else { Platform.showToast('需完整观看广告才能解锁'); }
+          }
+        });
+      }
+    };
+  }
+  function saveToSlotUI(n) {
+    ensureSlotUnlock(n, function () {
+      if (App.saveToSlot(n)) {
+        App.log('已存档到档位 ' + n);
+        Platform.showToast('已存档到档位' + n);
+      }
+      dirty = true;
+    });
+  }
+  function loadSlotUI(n) {
+    ensureSlotUnlock(n, function () {
+      var slots = App.getSlots();
+      if (!slots[n] || !slots[n].has) { Platform.showToast('档位 ' + n + ' 无存档'); return; }
+      modal = {
+        title: '读取档位 ' + n,
+        text: '读取档位 ' + n + ' 将覆盖当前进度（当前进度会先自动保存到档位1）。是否继续？',
+        okText: '读取',
+        cancel: true,
+        onOk: function () {
+          App.save();   // 当前进度先存入档位1，防止误操作丢失
+          if (App.loadSlot(n)) {
+            lastRes = {}; resPop = {};
+            floats = [];
+            scrollY = 0; currentTab = 'bonfire';
+            savePanel = null;
+            App.log('读取档位 ' + n + ' 的存档。');
+            Platform.showToast('已读取档位' + n);
+            dirty = true;
+          } else { Platform.showToast('读取失败'); }
+        }
+      };
+    });
+  }
+
+  /* 重开存档：确认后观看激励视频广告，完整观看才从 0 重开（否则取消） */
+  function askReset() {
+    modal = {
+      title: '重开存档',
+      text: '将清除当前全部进度（建筑 / 资源 / 典籍 / 族人 / 气运），从 0 重新开荒。\n需完整观看一段激励视频广告方可重开。',
+      okText: '观看广告重开',
+      cancel: true,
+      onOk: function () {
+        Platform.showRewardedAd({
+          onDone: function (watched) {
+            if (watched) {
+              App.resetAll();
+              if (App.cloudClear) App.cloudClear(function () { /* 静默清云端，避免下次启动误恢复旧档 */ });
+              lastRes = {}; resPop = {};
+              floats = [];
+              scrollY = 0; currentTab = 'bonfire';
+              dirty = true;
+              App.log('观看广告后重开存档，从 0 开始。');
+              Platform.showToast('已重开存档');
+            } else {
+              Platform.showToast('需完整观看广告才能重开');
+            }
+          }
+        });
+      },
+      onCancel: null
+    };
+  }
   function toggleSpeed() { App.G.speed = App.G.speed === 1 ? 10 : 1; dirty = true; }
 
   function hitTest(p) {
@@ -876,6 +1097,7 @@ var SHUI = (function () {
     touchX = p.x; touchY = p.y;
     if (rankPanel) { hitTest(p); return; }
     if (modal) { hitTest(p); return; }
+    if (savePanel) { hitTest(p); return; }
     if (hitTest(p)) return;
     dragY = p.y;
     dragStartY = scrollY;
@@ -935,8 +1157,42 @@ var SHUI = (function () {
       Platform.checkSidebar(function (r) { sidebarAvail = !!(r && r.isExist); dirty = true; });
     }
     lastLogLen = App.G.log.length;
+    // 云存档：启动 2 秒后检测云端存档并提示恢复（仅本地无主档时，新设备/清缓存场景）
+    setTimeout(function () { checkCloudOnStart(); }, 2000);
     Platform.raf(frame);
     return canvas;
+  }
+  function checkCloudOnStart() {
+    if (!App.cloudHasData) return;
+    var hasLocal = !!(Platform.storageGet && Platform.storageGet('shanhajing_save_v1'));
+    if (hasLocal) return;   // 本地已有进度，不打扰（可在存档面板手动下载）
+    App.cloudHasData(function (has) {
+      if (!has) return;
+      App.cloudGetInfo(function (err, meta) {
+        if (err || !meta) return;
+        modal = {
+          title: '检测到云端存档',
+          text: '云端存有档位（上传于 ' + _fmtTime(meta.t) + '）。是否从云端恢复？恢复将覆盖当前进度（当前进度会先存档位1）。',
+          okText: '恢复',
+          cancel: true,
+          onOk: function () {
+            App.save();
+            App.cloudDownload(function (e) {
+              if (e) { Platform.showToast('恢复失败'); return; }
+              App.load();
+              lastRes = {}; resPop = {};
+              floats = [];
+              scrollY = 0; currentTab = 'bonfire';
+              App.log('已从云端恢复存档。');
+              Platform.showToast('已恢复云端存档');
+              dirty = true;
+            });
+          },
+          onCancel: null
+        };
+        dirty = true;
+      });
+    });
   }
 
   function setDevMode(v) { devMode = v; dirty = true; }
