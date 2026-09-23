@@ -132,16 +132,6 @@ var SHUI = (function () {
     var s = SHCore.DATA.SEASONS[G.season];
     var modTxt = App.isTech('lifa') ? '（灵禾 ×' + s.mod + '）' : '';
     text('第 ' + G.year + ' 年 · ' + s.name + ' · 第 ' + G.day + ' 天 ' + modTxt, 12, L.top + 30, 12, C.dim);
-    // 侧边栏复访礼包入口（仅宿主支持侧边栏时显示；脉动高亮吸引点击）
-    if (sidebarAvail) {
-      var gw = 72, gh = 30;
-      var gx = W - 12 - gw, gy = L.top + (L.headerH - gh) / 2;
-      var pulse = 0.55 + 0.45 * Math.abs(Math.sin(Date.now() / 420));
-      ctx.save();
-      ctx.globalAlpha = 0.65 + 0.35 * pulse;
-      btn(gx, gy, gw, gh, '入口有奖', true, openSidebarGift, { fill: '#3a2d0b', stroke: C.gold, color: C.gold });
-      ctx.restore();
-    }
   }
 
   function drawResources(L) {
@@ -173,9 +163,18 @@ var SHUI = (function () {
     var starving = App.G.starving;
     var color = starving ? C.red : C.gold;
     var y = L.hintTop + (L.hintH - 13) / 2;
-    // 右侧操作按钮：日志 / 暂停 / 存档（放在提示条，避开顶部模拟器悬浮调试条）
+    // 右侧操作按钮：入口有奖 / 日志 / 暂停 / 存档（放提示条，避开顶部模拟器悬浮调试条）
     var bw = 42, bh = 24, gap = 6;
-    var bx = W - 10 - bw;
+    var sbW = sidebarAvail ? 70 : 0;   // 「入口有奖」仅侧边栏可用时显示
+    var bx = W - 10 - (sidebarAvail ? sbW : bw);
+    if (sidebarAvail) {
+      var pulse = 0.55 + 0.45 * Math.abs(Math.sin(Date.now() / 420));
+      ctx.save();
+      ctx.globalAlpha = 0.65 + 0.35 * pulse;
+      btn(bx, L.hintTop + (L.hintH - bh) / 2, sbW, bh, '入口有奖', true, openSidebarGift, { fill: '#3a2d0b', stroke: C.gold, color: C.gold });
+      ctx.restore();
+      bx -= sbW + gap;
+    }
     btn(bx, L.hintTop + (L.hintH - bh) / 2, bw, bh, '存档', true, doSave, {});
     bx -= bw + gap;
     btn(bx, L.hintTop + (L.hintH - bh) / 2, bw, bh, App.G.running ? '暂停' : '继续', true, togglePause, { stroke: C.gold, color: C.gold });
@@ -184,7 +183,8 @@ var SHUI = (function () {
     // 提示文本（截断到按钮左侧）
     var str = hint;
     ctx.font = '12px sans-serif';
-    var maxW = W - 24 - (bw * 3 + gap * 2 + 10);
+    var btnW = (sidebarAvail ? sbW + gap : 0) + bw * 3 + gap * 2 + 10;
+    var maxW = W - 24 - btnW;
     while (ctx.measureText(str).width > maxW && str.length > 4) str = str.slice(0, -1);
     if (str !== hint) str = str.slice(0, -1) + '…';
     text(str, 12, y, 12, color);

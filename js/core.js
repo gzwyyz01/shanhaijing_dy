@@ -130,6 +130,10 @@ function createGame() {
   };
   var SAVE_KEY = 'shanhajing_save_v1';
   var BACKUP_KEY = 'shanhajing_save_backup';
+  /* 存档版本：数值/开局机制调整时必须 +1。旧版本存档（含无版本号存档）
+     将自动备份到 backup 并清空主档，重新开荒——保证新设备/新版本从 0 开始，
+     避免旧数值存档与新版本不兼容导致死锁或"非从 0 开局" */
+  var SAVE_VERSION = 3;
 
   function starterKit() {
     G.res.linghe = START_LINGHE;
@@ -358,7 +362,7 @@ function createGame() {
 
   function serialize() {
     return JSON.stringify({
-      v: 2,
+      v: SAVE_VERSION,
       tick: G.tick, day: G.day, season: G.season, year: G.year,
       res: G.res, bld: G.bld, jobs: G.jobs, techs: G.techs,
       kittens: G.kittens, kittenProgress: G.kittenProgress, qiyun: G.qiyun,
@@ -378,7 +382,16 @@ function createGame() {
   function load() {
     try {
       var s = storageGet(SAVE_KEY);
-      if (s) { var d = JSON.parse(s); migrate(d); apply(d); return true; }
+      if (s) {
+        var d = JSON.parse(s);
+        // 版本校验：不匹配（旧档/无版本号）→ 备份旧档、清空主档，重新开荒
+        if (!d || d.v !== SAVE_VERSION) {
+          try { storageSet(BACKUP_KEY, s); } catch (e) { /* ignore */ }
+          try { storageSet(SAVE_KEY, ''); } catch (e) { /* ignore */ }
+          return false;
+        }
+        migrate(d); apply(d); return true;
+      }
     } catch (e) { /* 存档损坏则重新开始 */ }
     return false;
   }
