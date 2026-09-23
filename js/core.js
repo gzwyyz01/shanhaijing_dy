@@ -25,7 +25,8 @@ var SEASONS = [
   { name: '冬', mod: 0.25, log: '凛冬已至，万物肃杀。' }
 ];
 
-var RES_ORDER = ['linghe', 'wood', 'stone', 'bronze', 'xueshi', 'wuliang', 'shiban', 'tongban', 'xuantie'];
+var RES_ORDER = ['linghe', 'wood', 'stone', 'bronze', 'xueshi', 'wuliang', 'shiban', 'tongban', 'xuantie',
+  'xuntie', 'xinghuishi', 'ruishou', 'hetuluoshu'];
 var RES_DEF = {
   linghe:  { title: '灵禾', desc: '族人口粮，维系生息' },
   wood:    { title: '木料', desc: '营造之材' },
@@ -35,10 +36,17 @@ var RES_DEF = {
   wuliang: { title: '屋梁', desc: '营造之材', craft: true },
   shiban:  { title: '石板', desc: '营造之材', craft: true },
   tongban: { title: '铜板', desc: '铸器之材', craft: true },
-  xuantie: { title: '玄铁', desc: '百炼神铁', craft: true }
+  xuantie: { title: '玄铁', desc: '百炼神铁', craft: true },
+  xuntie:     { title: '陨铁', desc: '天外陨铁，百炼成兵', unlock: 'xuaniejing' },
+  xinghuishi: { title: '星辉石', desc: '夜观天象，星辉为石', unlock: 'xingxiangjing' },
+  ruishou:    { title: '瑞兽', desc: '祥瑞之兽，通灵之物', unlock: 'shoujing' },
+  hetuluoshu: { title: '河图洛书', desc: '河出图，洛出书，圣人则之', unlock: 'tianji' }
 };
 
-var BLD_ORDER = ['lingTian', 'caolu', 'muliaoCang', 'linchang', 'cangjingge', 'liangcang', 'kuangdong', 'lianqifang', 'yelianlu'];
+var BLD_ORDER = ['lingTian', 'caolu', 'muliaoCang', 'linchang', 'cangjingge', 'liangcang', 'kuangdong', 'lianqifang', 'yelianlu',
+  'shichang', 'mawu', 'shoulan', 'yinshuiqu', 'shuyuan', 'baicaoyuan', 'kufang', 'shiji', 'zhubisi', 'yuefang',
+  'citang', 'shenmiao', 'ruishouyuan', 'niangfang', 'guanxingtai', 'duanshaoyao', 'lingquanyan', 'jiguangfang',
+  'julingzhen', 'gongfang', 'dukou', 'huazhai', 'tianjige'];
 var BLD_DEF = {
   lingTian:  { title: '灵田', desc: '开垦沃土，灵禾自生', unlock: 'start', ratio: 1.12, prices: { linghe: 100 }, fx: { linghe: 3 } },
   caolu:     { title: '草庐', desc: '遮风避雨，族人安居（1 座 = 2 人口上限）', unlock: 'wood', ratio: 2.5,  prices: { wood: 50 }, fx: { maxKittens: 2 } },
@@ -48,18 +56,49 @@ var BLD_DEF = {
   liangcang: { title: '粮仓', desc: '储粮备荒，以度严冬（灵禾上限 +1500）', unlock: 'wood', ratio: 1.75, prices: { wood: 150 }, fx: { lingheMax: 1500 } },
   kuangdong: { title: '矿洞', desc: '凿山取石，深掘矿脉', unlock: 'shanjing', ratio: 1.15, prices: { wood: 600, stone: 400 }, fx: { stone: 0.5 } },
   lianqifang:{ title: '炼器坊', desc: '熔炼万物之所', unlock: 'shanjing', ratio: 1.15, prices: { wood: 800, stone: 500 }, fx: {} },
-  yelianlu:  { title: '冶炼炉', desc: '烈火熔金，青铜乃成', unlock: 'jinjing', ratio: 1.15, prices: { wood: 1500, stone: 800, bronze: 300 }, fx: { bronze: 0.5 } }
+  yelianlu:  { title: '冶炼炉', desc: '烈火熔金，青铜乃成', unlock: 'jinjing', ratio: 1.15, prices: { wood: 1500, stone: 800, bronze: 300 }, fx: { bronze: 0.5 } },
+  shichang:  { title: '石场', desc: '凿石成场，石料不绝', unlock: 'shanjing', ratio: 1.15, prices: { wood: 1000, stone: 300 }, fx: { stone: 1 } },
+  mawu:      { title: '木屋', desc: '木石为屋，族人安居（1 座 = 4 人口上限）', unlock: 'yingzaojing', ratio: 2.2, prices: { wood: 1000, stone: 500 }, fx: { maxKittens: 4 } },
+  shoulan:   { title: '兽栏', desc: '圈养百兽，肉食为继', unlock: 'shoujing', ratio: 1.15, prices: { wood: 600, linghe: 300 }, fx: { linghe: 4 } },
+  yinshuiqu: { title: '引水渠', desc: '引水灌田，灵禾倍产', unlock: 'gongjing', ratio: 1.25, prices: { wood: 400, stone: 1200 }, fx: { lingheRatio: 0.5 } },
+  shuyuan:   { title: '书院', desc: '讲学论道，学识日增', unlock: 'suanjing', ratio: 1.15, prices: { wood: 1500, xueshi: 200 }, fx: { xueshi: 0.6, xueshiMax: 800 } },
+  baicaoyuan:{ title: '百草园', desc: '遍植百草，药食两用', unlock: 'wenzi', ratio: 1.15, prices: { wood: 1200, linghe: 2500 }, fx: { linghe: 2 } },
+  kufang:    { title: '库房', desc: '广积粮秣（木料上限 +5000）', unlock: 'yingzaojing', ratio: 1.5, prices: { wood: 2500 }, fx: { woodMax: 5000 } },
+  shiji:     { title: '市集', desc: '互通有无，八方来朝（开启方国贸易）', unlock: 'liyue', ratio: 1.15, prices: { wood: 3500, stone: 1500 }, fx: { tradeSlots: 1 } },
+  zhubisi:   { title: '铸币司', desc: '鼓铸青铜，以资国用', unlock: 'jinjing', ratio: 1.15, prices: { wood: 2500, bronze: 500 }, fx: { bronze: 1.5 } },
+  yuefang:   { title: '乐坊', desc: '礼乐之坊，教化万民', unlock: 'liyue', ratio: 1.15, prices: { wood: 3000, xueshi: 500 }, fx: { xueshi: 0.5 } },
+  citang:    { title: '祠堂', desc: '祀奉先祖，香火绵延', unlock: 'lidian', ratio: 1.15, prices: { stone: 5000, bronze: 1000 }, fx: { xueshi: 1 } },
+  shenmiao:  { title: '神庙', desc: '敬奉神明，庇佑苍生', unlock: 'lidian', ratio: 1.15, prices: { stone: 8000, bronze: 2000 }, fx: { xueshi: 2, prodRatio: 0.02 } },
+  ruishouyuan:{ title: '瑞兽苑', desc: '驯养瑞兽，祥瑞降世', unlock: 'shoujing', ratio: 1.15, prices: { wood: 3000, linghe: 2000 }, fx: { ruishou: 0.1 } },
+  niangfang: { title: '酿坊', desc: '酿制灵酿，激励万民', unlock: 'gongjing', ratio: 1.15, prices: { wood: 4000, linghe: 1500 }, fx: { prodRatio: 0.03 } },
+  guanxingtai:{ title: '观星台', desc: '夜观天象，星辉为石', unlock: 'xingxiangjing', ratio: 1.15, prices: { stone: 3000, bronze: 1200 }, fx: { xueshi: 2, xinghuishi: 0.1 } },
+  duanshaoyao:{ title: '锻烧窑', desc: '烈火锻烧，陨铁乃成', unlock: 'xuaniejing', ratio: 1.15, prices: { wood: 4000, bronze: 1500 }, fx: { xuntie: 0.5 } },
+  lingquanyan:{ title: '灵泉眼', desc: '灵泉涌出，青铜自生', unlock: 'lianqi', ratio: 1.15, prices: { stone: 5000, xuantie: 200 }, fx: { bronze: 1.5 } },
+  jiguangfang:{ title: '机关坊', desc: '机关巧思，玄铁成器', unlock: 'jiguanshu', ratio: 1.15, prices: { wood: 6000, xuantie: 500 }, fx: { xuantie: 1 } },
+  julingzhen: { title: '聚灵阵', desc: '聚星辉于阵，灵石自生', unlock: 'zhenfa', ratio: 1.15, prices: { bronze: 3000, xinghuishi: 100 }, fx: { xinghuishi: 1 } },
+  gongfang:   { title: '工坊', desc: '百工齐备，万业俱兴', unlock: 'gongjing', ratio: 1.15, prices: { wood: 5000, stone: 3000 }, fx: { prodRatio: 0.05 } },
+  dukou:      { title: '渡口', desc: '舟楫往来，货殖通流', unlock: 'hanghaijing', ratio: 1.5, prices: { wood: 8000, stone: 3000 }, fx: { lingheMax: 3000, woodMax: 5000 } },
+  huazhai:    { title: '华宅', desc: '雕梁画栋，望族气象（1 座 = 8 人口上限）', unlock: 'lidian', ratio: 2.2, prices: { stone: 2500, bronze: 800 }, fx: { maxKittens: 8 } },
+  tianjige:   { title: '天机阁', desc: '窥天机，得河图洛书', unlock: 'xuanmen', ratio: 1.15, prices: { stone: 20000, xinghuishi: 500, ruishou: 10 }, fx: { hetuluoshu: 0.1, xueshiMax: 5000 } }
 };
 
-var JOB_ORDER = ['caiyaoren', 'lingnong', 'qiaofu', 'zaoshijiang'];
+var JOB_ORDER = ['caiyaoren', 'lingnong', 'qiaofu', 'zaoshijiang', 'liehu', 'tanmaishi', 'bushi', 'qishi', 'jisi'];
 var JOB_DEF = {
   caiyaoren:  { title: '采药人', desc: '采撷灵药，聊补粮秣（开局即可分配）', unlock: 'start', fx: { linghe: 0.5 } },
   lingnong:   { title: '灵农', desc: '耕种灵禾（≈2.3 块灵田，对齐猫国农夫）', unlock: 'baicaojing', fx: { linghe: 7 } },
   qiaofu:     { title: '樵夫', desc: '入山伐木（需先精炼起家）', unlock: 'lifa', fx: { wood: 0.18 } },
-  zaoshijiang:{ title: '凿石匠', desc: '凿石开山', unlock: 'shanjing', fx: { stone: 0.5 } }
+  zaoshijiang:{ title: '凿石匠', desc: '凿石开山', unlock: 'shanjing', fx: { stone: 0.5 } },
+  liehu:      { title: '猎户', desc: '入山狩猎，猎获充饥', unlock: 'shouliejing', fx: { linghe: 3 } },
+  tanmaishi:  { title: '探脉师', desc: '循脉探矿，得山中之宝', unlock: 'shanjing', fx: { stone: 1.2 } },
+  bushi:      { title: '卜者', desc: '观星占卜，明晓天机', unlock: 'xingxiangjing', fx: { xueshi: 1 } },
+  qishi:      { title: '器师', desc: '铸器锻兵，巧夺天工', unlock: 'zhuqijing', fx: { xuantie: 0.3 } },
+  jisi:       { title: '祭司', desc: '敬神布道，通神达意', unlock: 'lidian', fx: { xueshi: 2 } }
 };
 
-var TECH_ORDER = ['lifa', 'baicaojing', 'shouliejing', 'shanjing', 'jinjing', 'suanjing', 'yingzaojing', 'zhuqijing'];
+var TECH_ORDER = ['lifa', 'baicaojing', 'shouliejing', 'shanjing', 'jinjing', 'suanjing', 'yingzaojing', 'zhuqijing',
+  'shoujing', 'gongjing', 'wenzi', 'liyue', 'lidian', 'jiguanshu', 'xuaniejing', 'xingxiangjing', 'lianqi', 'zhenfa',
+  'hanghaijing', 'tiangong', 'yuling', 'danding', 'xuanmen', 'tianji',
+  'shangwu', 'chongwen', 'shuntian', 'kaishan', 'qiuzhang', 'zhanglao', 'busuan', 'baijia'];
 var TECH_DEF = {
   lifa:        { title: '历法', desc: '观天象，知四时', prices: { xueshi: 300 }, req: null },
   baicaojing:  { title: '百草经', desc: '辨百草，兴稼穑', prices: { xueshi: 1000 }, req: 'lifa' },
@@ -68,7 +107,31 @@ var TECH_DEF = {
   jinjing:     { title: '金经', desc: '五金之术，熔炼成器', prices: { xueshi: 9000 }, req: 'shanjing' },
   suanjing:    { title: '算经', desc: '精于术数，博闻强识', prices: { xueshi: 10000 }, req: 'lifa', fx: { xueshiRatio: 0.5 } },
   yingzaojing: { title: '营造经', desc: '营室造屋之法', prices: { xueshi: 13000 }, req: 'suanjing' },
-  zhuqijing:   { title: '铸器经', desc: '铸铜炼铁，神器初成', prices: { xueshi: 22000 }, req: ['jinjing', 'yingzaojing'] }
+  zhuqijing:   { title: '铸器经', desc: '铸铜炼铁，神器初成', prices: { xueshi: 22000 }, req: ['jinjing', 'yingzaojing'] },
+  shoujing:    { title: '兽经', desc: '识百兽之性', prices: { xueshi: 15000 }, req: 'shanjing' },
+  gongjing:    { title: '工经', desc: '百工之术', prices: { xueshi: 18000 }, req: 'yingzaojing', fx: { prodRatio: 0.1 } },
+  wenzi:       { title: '文字经', desc: '结绳记事，始有文字', prices: { xueshi: 24000 }, req: 'suanjing', fx: { xueshiRatio: 0.25 } },
+  liyue:       { title: '礼乐经', desc: '礼乐教化', prices: { xueshi: 30000 }, req: 'wenzi', fx: { prodRatio: 0.1 } },
+  lidian:      { title: '礼典', desc: '制礼作乐，以安邦国', prices: { xueshi: 40000 }, req: 'liyue', fx: { xueshiRatio: 0.5 } },
+  jiguanshu:   { title: '机关术', desc: '机关巧思', prices: { xueshi: 60000 }, req: 'zhuqijing', fx: { prodRatio: 0.15 } },
+  xuaniejing:  { title: '玄铁经', desc: '玄铁之秘', prices: { xueshi: 45000 }, req: 'zhuqijing' },
+  xingxiangjing:{ title: '星象经', desc: '观星象以知兴替', prices: { xueshi: 80000 }, req: 'lidian' },
+  lianqi:      { title: '炼气经', desc: '炼气化神', prices: { xueshi: 120000 }, req: 'xingxiangjing' },
+  zhenfa:      { title: '阵法', desc: '布阵聚灵', prices: { xueshi: 160000 }, req: 'lianqi' },
+  hanghaijing: { title: '航海经', desc: '乘桴浮海', prices: { xueshi: 220000 }, req: 'zhenfa' },
+  tiangong:    { title: '天工', desc: '巧夺天工', prices: { xueshi: 300000 }, req: 'hanghaijing', fx: { prodRatio: 0.25 } },
+  yuling:      { title: '御灵经', desc: '御灵之术', prices: { xueshi: 400000 }, req: 'tiangong' },
+  danding:     { title: '丹鼎', desc: '丹鼎之术', prices: { xueshi: 600000 }, req: 'yuling' },
+  xuanmen:     { title: '玄门', desc: '玄之又玄', prices: { xueshi: 800000 }, req: 'danding' },
+  tianji:      { title: '天机', desc: '天机不可泄', prices: { xueshi: 1000000 }, req: 'xuanmen' },
+  shangwu:     { title: '尚武', desc: '崇尚武功（与崇文互斥）', prices: { xueshi: 50000 }, req: 'shouliejing', mutex: 'chongwen', fx: { prodRatio: 0.2 } },
+  chongwen:    { title: '崇文', desc: '崇尚文治（与尚武互斥）', prices: { xueshi: 50000 }, req: 'wenzi', mutex: 'shangwu', fx: { xueshiRatio: 1 } },
+  shuntian:    { title: '顺天', desc: '顺天应时（与开山互斥）', prices: { xueshi: 70000 }, req: 'lifa', mutex: 'kaishan', fx: { lingheRatio: 0.5 } },
+  kaishan:     { title: '开山', desc: '开山凿石（与顺天互斥）', prices: { xueshi: 70000 }, req: 'shanjing', mutex: 'shuntian', fx: { stoneRatio: 0.5, bronzeRatio: 0.5 } },
+  qiuzhang:    { title: '酋长制', desc: '族权归一（与长老会互斥）', prices: { xueshi: 90000 }, req: 'lifa', mutex: 'zhanglao', fx: { prodRatio: 0.1 } },
+  zhanglao:    { title: '长老会', desc: '众议共治（与酋长制互斥）', prices: { xueshi: 90000 }, req: 'wenzi', mutex: 'qiuzhang', fx: { xueshiRatio: 0.5 } },
+  busuan:      { title: '卜算治国', desc: '以卜治国（与百家争鸣互斥）', prices: { xueshi: 150000 }, req: 'xingxiangjing', mutex: 'baijia', fx: { xueshi: 0.5 } },
+  baijia:      { title: '百家争鸣', desc: '百花齐放（与卜算治国互斥）', prices: { xueshi: 150000 }, req: 'wenzi', mutex: 'busuan', fx: { xueshiRatio: 1 } }
 };
 
 var CRAFT_ORDER = ['wood', 'wuliang', 'shiban', 'tongban', 'xuantie'];
@@ -78,6 +141,43 @@ var CRAFT_DEF = {
   shiban:  { title: '石板', desc: '凿石成板', unlock: 'yingzaojing', need: ['lianqifang'], prices: { stone: 2500 } },
   tongban: { title: '铜板', desc: '青铜锻板', unlock: 'zhuqijing', need: ['lianqifang'], prices: { bronze: 1250 } },
   xuantie: { title: '玄铁', desc: '百炼成玄铁', unlock: 'zhuqijing', need: ['yelianlu'], prices: { bronze: 1000 } }
+};
+
+/* ================= 1.5 事件系统 ================= */
+var EVENT_ORDER = ['dahan', 'tianxiang', 'fengshou', 'shouchao', 'shanben', 'xingyu'];
+var EVENT_DEF = {
+  dahan:     { title: '大旱', text: '赤地千里，灵禾减产五成（30 天）', season: 1, prob: 0.012, dur: 30, fx: { lingheRatio: -0.5 } },
+  tianxiang: { title: '天象异动', text: '紫气东来，灵禾增产五成（30 天）', prob: 0.008, dur: 30, fx: { lingheRatio: 0.5 } },
+  fengshou:  { title: '丰收祭', text: '五谷丰登，灵禾 +1000', prob: 0.01, dur: 0, gain: { linghe: 1000 } },
+  shouchao:  { title: '兽潮', text: '万兽奔涌，木料 +500', prob: 0.008, dur: 0, gain: { wood: 500 } },
+  shanben:   { title: '山崩', text: '巨石滚落，石料 +800', prob: 0.008, dur: 0, gain: { stone: 800 } },
+  xingyu:    { title: '星雨', text: '陨星坠落，陨铁 +20', prob: 0.004, dur: 0, gain: { xuntie: 20 } }
+};
+
+/* ================= 1.6 成就系统 ================= */
+var ACH_ORDER = ['kaihuang', 'shennong', 'cangjie', 'suiren', 'yujia', 'yugong', 'jingwei', 'kuafu', 'zhinv', 'dayu',
+  'houyi', 'pangu', 'nuwa', 'fuxi', 'hetu', 'suiyue', 'qiyun', 'baisheng', 'qianfeng', 'wangguo'];
+var ACH_DEF = {
+  kaihuang: { title: '开荒者', desc: '建造 1 座灵田', cond: function (g) { return (g.bld.lingTian || 0) >= 1; } },
+  shennong: { title: '神农尝草', desc: '研习 5 项典籍', cond: function (g) { var n = 0, k; for (k in g.techs) if (g.techs[k]) n++; return n >= 5; } },
+  cangjie:  { title: '仓颉造字', desc: '学识达到 1000', cond: function (g) { return (g.res.xueshi || 0) >= 1000; } },
+  suiren:   { title: '燧人取火', desc: '建造冶炼炉', cond: function (g) { return (g.bld.yelianlu || 0) >= 1; } },
+  yujia:    { title: '安得广厦', desc: '建造 10 座草庐', cond: function (g) { return (g.bld.caolu || 0) >= 10; } },
+  yugong:   { title: '愚公移山', desc: '建造 20 座矿洞', cond: function (g) { return (g.bld.kuangdong || 0) >= 20; } },
+  jingwei:  { title: '精卫填海', desc: '累计采集 10000 灵禾', cond: function (g) { return (g.stat.lingheGathered || 0) >= 10000; } },
+  kuafu:    { title: '夸父逐日', desc: '累计点击采集 1000 次', cond: function (g) { return (g.stat.gatherClicks || 0) >= 1000; } },
+  zhinv:    { title: '嫘祖养蚕', desc: '族人达到 50', cond: function (g) { return (g.kittens || 0) >= 50; } },
+  dayu:     { title: '大禹治水', desc: '建造 10 座引水渠', cond: function (g) { return (g.bld.yinshuiqu || 0) >= 10; } },
+  houyi:    { title: '后羿射日', desc: '猎户累计产出 100 灵禾', cond: function (g) { return (g.stat.huntProduced || 0) >= 100; } },
+  pangu:    { title: '盘古开天', desc: '首次轮回', cond: function (g) { return (g.qiyun || 0) >= 1; } },
+  nuwa:     { title: '女娲补天', desc: '获得 100 星辉石', cond: function (g) { return (g.res.xinghuishi || 0) >= 100; } },
+  fuxi:     { title: '伏羲画卦', desc: '研习《算经》', cond: function (g) { return !!g.techs.suanjing; } },
+  hetu:     { title: '河图洛书', desc: '获得 1 河图洛书', cond: function (g) { return (g.res.hetuluoshu || 0) >= 1; } },
+  suiyue:   { title: '岁月如歌', desc: '存活满 1000 天', cond: function (g) { return (g.tick / DAY_TICKS) >= 1000; } },
+  qiyun:    { title: '气运加身', desc: '拥有 5 点气运', cond: function (g) { return (g.qiyun || 0) >= 5; } },
+  baisheng: { title: '百胜之师', desc: '族人达到 100', cond: function (g) { return (g.kittens || 0) >= 100; } },
+  qianfeng: { title: '千峰竞秀', desc: '石料达到 10000', cond: function (g) { return (g.res.stone || 0) >= 10000; } },
+  wangguo:  { title: '王国初成', desc: '建造 5 座华宅', cond: function (g) { return (g.bld.huazhai || 0) >= 5; } }
 };
 
 /* ================= 2. 核心工具 core/ ================= */
@@ -149,6 +249,7 @@ function createGame() {
     res: {}, bld: {}, jobs: {}, techs: {},
     kittens: 0, kittenProgress: 0, qiyun: 0, starveProgress: 0,
     effects: {}, log: [], seen: {},
+    stat: {}, ach: {}, event: null,
     peakKittens: 0, peakDay: 1, peakSeason: 0, peakYear: 1,   // 历史巅峰族人及达成时刻（排行榜）
     lastSaveTick: 0, autosaveEvery: 400,
     starving: false
@@ -158,7 +259,7 @@ function createGame() {
   /* 存档版本：数值/开局机制调整时必须 +1。旧版本存档（含无版本号存档）
      将自动备份到 backup 并清空主档，重新开荒——保证新设备/新版本从 0 开始，
      避免旧数值存档与新版本不兼容导致死锁或"非从 0 开局" */
-  var SAVE_VERSION = 4;   // v4：数值框架对齐猫国（开局 0 灵田、草庐 50 木），旧档备份后从 0 开荒
+  var SAVE_VERSION = 5;   // v5：P2 一界完整（新增 4 资源 / 23 建筑 / 5 职业 / 24 典籍 / 事件 / 成就），旧档备份后从 0 开荒
 
   function starterKit() {
     G.res.linghe = START_LINGHE;
@@ -175,6 +276,8 @@ function createGame() {
     d.techs = shallow(d.techs || {});
     d.seen = shallow(d.seen || {});
     if (!d.log) d.log = [];
+    if (!d.stat) d.stat = {};
+    if (!d.ach) d.ach = {};
     if (typeof d.kittens === 'number') d.kittens = Math.floor(d.kittens);
     if (d.res.linghe === undefined) d.res.linghe = 0;   // 仅缺失时补 0，旧档灵禾保留
     // 排行榜峰值字段：旧档补默认（不升 SAVE_VERSION，避免清档）
@@ -215,7 +318,12 @@ function createGame() {
         for (f in TECH_DEF[k].fx) E[f] = (E[f] || 0) + TECH_DEF[k].fx[f];
       }
     }
-    E.prodRatio = getLimitedDR(G.qiyun * 0.01, 0.5);
+    E.prodRatio = (E.prodRatio || 0) + getLimitedDR(G.qiyun * 0.01, 0.5);
+    // 事件效果并入（大旱/天象异动等，作用于 lingheRatio）
+    if (G.event) {
+      var ev = EVENT_DEF[G.event.id];
+      if (ev && ev.fx) { for (var f2 in ev.fx) E[f2] = (E[f2] || 0) + ev.fx[f2]; }
+    }
     G.effects = E;
   }
   function getEffect(name) { return G.effects[name] || 0; }
@@ -242,7 +350,10 @@ function createGame() {
       if (!isJobUnlocked(k)) continue;
       var n = G.jobs[k] || 0;
       if (n <= 0) continue;
-      for (var f in JOB_DEF[k].fx) R[f] = (R[f] || 0) + JOB_DEF[k].fx[f] * n;
+      for (var f in JOB_DEF[k].fx) {
+        R[f] = (R[f] || 0) + JOB_DEF[k].fx[f] * n;
+        if (k === 'liehu' && f === 'linghe') G.stat.huntProduced = (G.stat.huntProduced || 0) + JOB_DEF[k].fx[f] * n;
+      }
     }
     var prod = 1 + getEffect('prodRatio');
     for (i = 0; i < RES_ORDER.length; i++) {
@@ -251,6 +362,9 @@ function createGame() {
     }
     R.wood *= 1 + getEffect('woodRatio');
     R.xueshi *= 1 + getEffect('xueshiRatio');
+    R.linghe *= 1 + getEffect('lingheRatio');
+    R.stone *= 1 + getEffect('stoneRatio');
+    R.bronze *= 1 + getEffect('bronzeRatio');
     R.linghe -= G.kittens * KITTEN_CONSUME;
     return R;
   }
@@ -320,6 +434,41 @@ function createGame() {
     }
   }
 
+  // 事件系统：每天一次——已有事件倒计时，无事件则按概率触发
+  function eventUpdate() {
+    if (G.event) {
+      G.event.remain--;
+      if (G.event.remain <= 0) { G.event = null; updateCaches(); }
+      return;
+    }
+    for (var i = 0; i < EVENT_ORDER.length; i++) {
+      var id = EVENT_ORDER[i];
+      var e = EVENT_DEF[id];
+      if (e.season !== undefined && e.season !== G.season) continue;
+      if (Math.random() < e.prob) {
+        G.event = { id: id, remain: e.dur || 1 };
+        if (e.gain) { for (var k in e.gain) G.res[k] = (G.res[k] || 0) + e.gain[k]; }
+        log('【' + e.title + '】' + e.text);
+        updateCaches();
+        break;
+      }
+    }
+  }
+
+  // 成就系统：每 10 tick 检查一次
+  function achUpdate() {
+    for (var i = 0; i < ACH_ORDER.length; i++) {
+      var id = ACH_ORDER[i];
+      if (G.ach[id]) continue;
+      try {
+        if (ACH_DEF[id].cond(G)) {
+          G.ach[id] = true;
+          log('【成就达成】' + ACH_DEF[id].title + '：' + ACH_DEF[id].desc);
+        }
+      } catch (e) { /* 条件异常忽略 */ }
+    }
+  }
+
   // 巅峰族人追踪：族人上升时记录峰值与达成时刻（轮回/饿死不降低）
   function peakUpdate() {
     if (G.kittens > G.peakKittens) {
@@ -334,6 +483,8 @@ function createGame() {
     var v = G.res.linghe || 0;
     if (v >= max) return false;
     G.res.linghe = v + 10;
+    G.stat.gatherClicks = (G.stat.gatherClicks || 0) + 1;
+    G.stat.lingheGathered = (G.stat.lingheGathered || 0) + 10;
     return true;
   }
 
@@ -382,6 +533,7 @@ function createGame() {
     if (G.techs[name] || !techReqsMet(name)) return;
     var t = TECH_DEF[name];
     if (!canAfford(t.prices)) return;
+    if (t.mutex && G.techs[t.mutex]) return;   // 互斥治国方略：已研对立项则不可研
     for (var k in t.prices) G.res[k] -= t.prices[k];
     G.techs[name] = true;
     log('参悟《' + t.title + '》：' + t.desc);
@@ -423,6 +575,7 @@ function createGame() {
       res: G.res, bld: G.bld, jobs: G.jobs, techs: G.techs,
       kittens: G.kittens, kittenProgress: G.kittenProgress, qiyun: G.qiyun,
       seen: G.seen, log: G.log.slice(-80),
+      stat: G.stat, ach: G.ach, event: G.event,
       peakKittens: G.peakKittens, peakDay: G.peakDay, peakSeason: G.peakSeason, peakYear: G.peakYear
     });
   }
@@ -432,6 +585,7 @@ function createGame() {
     G.techs = shallow(d.techs); G.seen = shallow(d.seen);
     G.kittens = d.kittens || 0; G.kittenProgress = d.kittenProgress || 0;
     G.qiyun = d.qiyun || 0; G.log = (d.log || []).slice();
+    G.stat = shallow(d.stat || {}); G.ach = shallow(d.ach || {}); G.event = d.event || null;
     G.peakKittens = d.peakKittens || 0; G.peakDay = d.peakDay || 1;
     G.peakSeason = d.peakSeason || 0; G.peakYear = d.peakYear || 1;
   }
@@ -460,10 +614,12 @@ function createGame() {
     var i;
     for (i = 0; i < G.speed; i++) {
       calendarUpdate();
+      eventUpdate();
       updateCaches();
       resourcesUpdate();
       villageUpdate();
       peakUpdate();
+      if (G.tick % 10 === 0) achUpdate();
     }
     if (G.tick - G.lastSaveTick >= G.autosaveEvery) {
       G.lastSaveTick = G.tick;
@@ -501,7 +657,7 @@ var SHCore = {
   fmt: fmt,
   fmtRate: fmtRate,
   setStorageAdapter: setStorageAdapter,
-  DATA: { RES_ORDER: RES_ORDER, RES_DEF: RES_DEF, BLD_ORDER: BLD_ORDER, BLD_DEF: BLD_DEF, JOB_ORDER: JOB_ORDER, JOB_DEF: JOB_DEF, TECH_ORDER: TECH_ORDER, TECH_DEF: TECH_DEF, CRAFT_ORDER: CRAFT_ORDER, CRAFT_DEF: CRAFT_DEF, SEASONS: SEASONS, KITTEN_CONSUME: KITTEN_CONSUME }
+  DATA: { RES_ORDER: RES_ORDER, RES_DEF: RES_DEF, BLD_ORDER: BLD_ORDER, BLD_DEF: BLD_DEF, JOB_ORDER: JOB_ORDER, JOB_DEF: JOB_DEF, TECH_ORDER: TECH_ORDER, TECH_DEF: TECH_DEF, CRAFT_ORDER: CRAFT_ORDER, CRAFT_DEF: CRAFT_DEF, EVENT_ORDER: EVENT_ORDER, EVENT_DEF: EVENT_DEF, ACH_ORDER: ACH_ORDER, ACH_DEF: ACH_DEF, SEASONS: SEASONS, KITTEN_CONSUME: KITTEN_CONSUME }
 };
 
 if (typeof module !== 'undefined' && module.exports) {

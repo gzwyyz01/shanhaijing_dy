@@ -51,7 +51,8 @@ var SHUI = (function () {
     { key: 'village', label: '部族' },
     { key: 'tech', label: '典籍' },
     { key: 'craft', label: '炼器' },
-    { key: 'prestige', label: '轮回' }
+    { key: 'prestige', label: '轮回' },
+    { key: 'deeds', label: '功业' }
   ];
 
   /* ---------- 基础绘制 ---------- */
@@ -270,6 +271,7 @@ var SHUI = (function () {
     else if (currentTab === 'tech') rows = buildTechRows();
     else if (currentTab === 'craft') rows = buildCraftRows();
     else if (currentTab === 'prestige') rows = buildPrestigeRows();
+    else if (currentTab === 'deeds') rows = buildDeedsRows();
     var total = 0;
     for (var i = 0; i < rows.length; i++) total += rows[i].h;
     scrollMax = Math.max(0, total - h);
@@ -406,7 +408,7 @@ var SHUI = (function () {
   }
   function fxTxt(fx) {
     var arr = [];
-    var noTickKeys = { maxKittens: 1, lingheMax: 1, xueshiMax: 1, woodMax: 1, woodRatio: 1, xueshiRatio: 1, prodRatio: 1 };
+    var noTickKeys = { maxKittens: 1, lingheMax: 1, xueshiMax: 1, woodMax: 1, woodRatio: 1, xueshiRatio: 1, prodRatio: 1, lingheRatio: 1, stoneRatio: 1, bronzeRatio: 1, tradeSlots: 1 };
     for (var k in fx) {
       var label = SHCore.DATA.RES_DEF[k] ? SHCore.DATA.RES_DEF[k].title : k;
       if (label === 'maxKittens') label = '族人上限';
@@ -415,10 +417,15 @@ var SHUI = (function () {
       if (label === 'woodMax') label = '木料上限';
       if (label === 'woodRatio') label = '木料产出';
       if (label === 'xueshiRatio') label = '学识产出';
+      if (label === 'lingheRatio') label = '灵禾产出';
+      if (label === 'stoneRatio') label = '石料产出';
+      if (label === 'bronzeRatio') label = '青铜产出';
+      if (label === 'tradeSlots') label = '贸易位';
+      if (label === 'prodRatio') label = '全部产出';
       var v = fx[k];
       var s = v >= 0 ? '+' : '−';
       s += SHCore.fmt(Math.abs(v));
-      if (label === '木料产出' || label === '学识产出') s += '%';
+      if (label === '木料产出' || label === '学识产出' || label === '灵禾产出' || label === '石料产出' || label === '青铜产出' || label === '全部产出') s += '%';
       else if (!noTickKeys[k]) s += '/t';
       arr.push(s + ' ' + label);
     }
@@ -641,6 +648,39 @@ var SHUI = (function () {
     return rows;
   }
 
+  function buildDeedsRows() {
+    var D = SHCore.DATA;
+    var rows = [];
+    var nDone = 0, i;
+    for (i = 0; i < D.ACH_ORDER.length; i++) if (App.G.ach[D.ACH_ORDER[i]]) nDone++;
+    var ev = App.G.event ? D.EVENT_DEF[App.G.event.id] : null;
+    rows.push({ h: 62, draw: function (y) {
+      rowPanel(10, y, W - 20, 54);
+      text('功业', 20, y + 10, 14, C.text, 'left', true);
+      text(nDone + ' / ' + D.ACH_ORDER.length, W - 20 - 16, y + 10, 13, C.gold, 'right');
+      if (ev) {
+        var evTxt = '【' + ev.title + '】' + ev.text + (App.G.event.remain > 0 ? '（剩 ' + App.G.event.remain + ' 天）' : '');
+        text(clipText(evTxt, W - 60, 11.5), 20, y + 30, 11.5, C.red);
+      } else {
+        text('天象平和，暂无异动。', 20, y + 30, 11.5, C.dim);
+      }
+    } });
+    for (i = 0; i < D.ACH_ORDER.length; i++) {
+      var id = D.ACH_ORDER[i];
+      var a = D.ACH_DEF[id];
+      var done = !!App.G.ach[id];
+      (function (a2, done2) {
+        rows.push({ h: 52, draw: function (y) {
+          rowPanel(10, y, W - 20, 44);
+          text(a2.title, 20, y + 8, 13, done2 ? C.jade : C.text, 'left', done2);
+          text(done2 ? '已达成' : '未达成', W - 20 - 16, y + 8, 11, done2 ? C.jade : C.dim, 'right');
+          text(clipText(a2.desc, W - 140, 11), 20, y + 24, 11, done2 ? C.jade : C.dim);
+        } });
+      })(a, done);
+    }
+    return rows;
+  }
+
   /* ---------- 提示与日志 ---------- */
   function nextHint() {
     var G = App.G;
@@ -648,6 +688,10 @@ var SHUI = (function () {
     var D = SHCore.DATA;
     if (G.starving)
       return '灵禾告罄，族人正在挨饿！' + (x >= D.TECH_DEF.lifa.prices.xueshi ? '学识已足：参悟《历法》→《百草经》，派灵农（产出不受季节）即解粮荒。' : '先建更多灵田，待灵禾收支转正。');
+    if (G.event) {
+      var evD = SHCore.DATA.EVENT_DEF[G.event.id];
+      if (evD) return '【' + evD.title + '】' + evD.text + (G.event.remain > 0 ? '（剩 ' + G.event.remain + ' 天）' : '');
+    }
     if (!G.techs.lifa && x >= D.TECH_DEF.lifa.prices.xueshi && App.techReqsMet('lifa'))
       return '学识已足，前往「典籍」参悟《历法》——解锁樵夫与林场，木料自动化。';
     if (G.techs.lifa && !G.techs.baicaojing && x >= D.TECH_DEF.baicaojing.prices.xueshi && App.techReqsMet('baicaojing'))
