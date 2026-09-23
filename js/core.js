@@ -54,7 +54,7 @@ var BLD_DEF = {
 var JOB_ORDER = ['caiyaoren', 'lingnong', 'qiaofu', 'zaoshijiang'];
 var JOB_DEF = {
   caiyaoren:  { title: '采药人', desc: '采撷灵药，聊补粮秣（开局即可分配）', unlock: 'start', fx: { linghe: 0.5 } },
-  lingnong:   { title: '灵农', desc: '耕种灵禾', unlock: 'baicaojing', fx: { linghe: 10 } },
+  lingnong:   { title: '灵农', desc: '耕种灵禾（≈2.3 块灵田，对齐猫国农夫）', unlock: 'baicaojing', fx: { linghe: 7 } },
   qiaofu:     { title: '樵夫', desc: '入山伐木（需先精炼起家）', unlock: 'lifa', fx: { wood: 0.18 } },
   zaoshijiang:{ title: '凿石匠', desc: '凿石开山', unlock: 'shanjing', fx: { stone: 0.5 } }
 };
