@@ -12,7 +12,7 @@ var TPS = 5;
 var DAY_TICKS = 5;           // 1 天 = 5 tick（1 秒）→ 对齐原版节奏（原版约 1 天/秒，一年约 6-7 分钟）
 var TICKS_PER_DAY = 10;
 var DAYS_PER_SEASON = 100;
-var KITTEN_CONSUME = 4.25;    // 原版 0.85/tick ×5 天：0.625 田 6.8 座养 1 人（对齐猫国 6.8 田/猫）；灵农(5/t) 养 1.18 人
+var KITTEN_CONSUME = 0.85;    // 对齐猫国 0.85 catnip/tick=每天（我们 1 秒=1 天）：1 猫 1 天耗 0.85
 var KITTEN_BIRTH_BASE = 0.05;    // 原版 0.01/tick×5=0.05/s：约 20 天 1 名新生儿（对齐猫国）
 var START_LINGHE = 0;   // 对齐原版：开局灵禾为 0，靠手动采集 + 灵田产出起步
 var STARTER = { lingTian: 0, caolu: 0, kittens: 0 };   // 对齐猫国：开局 0 田，手动采集攒 10 灵禾建第 1 座灵田
@@ -48,7 +48,7 @@ var BLD_ORDER = ['lingTian', 'caolu', 'muliaoCang', 'linchang', 'cangjingge', 'l
   'citang', 'shenmiao', 'ruishouyuan', 'niangfang', 'guanxingtai', 'duanshaoyao', 'lingquanyan', 'jiguangfang',
   'julingzhen', 'gongfang', 'dukou', 'huazhai', 'tianjige'];
 var BLD_DEF = {
-  lingTian:  { title: '灵田', desc: '开垦沃土，灵禾自生', unlock: 'start', ratio: 1.12, prices: { linghe: 10 }, fx: { linghe: 0.625 } },
+  lingTian:  { title: '灵田', desc: '开垦沃土，灵禾自生', unlock: 'start', ratio: 1.12, prices: { linghe: 10 }, fx: { linghe: 0.125 } },
   caolu:     { title: '草庐', desc: '遮风避雨，族人安居（1 座 = 2 人口上限）', unlock: 'wood', ratio: 1.15, prices: { wood: 5 }, fx: { maxKittens: 2 } },
   muliaoCang:{ title: '木料仓', desc: '贮存木料，以应营造（木料上限 +1000）', unlock: 'wood', ratio: 1.5, prices: { wood: 100 }, fx: { woodMax: 1000 } },
   linchang:  { title: '林场', desc: '入山采伐，林木不绝', unlock: 'lifa', ratio: 1.15, prices: { linghe: 400, wood: 300 }, fx: { wood: 0.5 } },
@@ -85,12 +85,12 @@ var BLD_DEF = {
 var JOB_ORDER = ['caiyaoren', 'lingnong', 'qiaofu', 'zaoshijiang', 'liehu', 'tanmaishi', 'bushi', 'qishi', 'jisi'];
 var JOB_DEF = {
   caiyaoren:  { title: '采药人', desc: '采撷灵药，聊补粮秣（开局即可分配）', unlock: 'start', fx: { linghe: 0.5 } },
-  lingnong:   { title: '灵农', desc: '耕种灵禾（≈8 块灵田，对齐猫国农夫 +1/tick）', unlock: 'baicaojing', fx: { linghe: 5 } },
-  qiaofu:     { title: '樵夫', desc: '入山伐木（需先精炼起家）', unlock: 'lifa', fx: { wood: 0.09 } },
+  lingnong:   { title: '灵农', desc: '耕种灵禾，五谷丰登（对齐猫国农夫 +1/天）', unlock: 'baicaojing', fx: { linghe: 1.0 } },
+  qiaofu:     { title: '樵夫', desc: '入山伐木（对齐猫国樵夫 0.18/天）', unlock: 'lifa', fx: { wood: 0.18 } },
   zaoshijiang:{ title: '凿石匠', desc: '凿石开山', unlock: 'shanjing', fx: { stone: 0.5 } },
   liehu:      { title: '猎户', desc: '入山狩猎，猎获充饥', unlock: 'shouliejing', fx: { linghe: 3 } },
   tanmaishi:  { title: '探脉师', desc: '循脉探矿，得山中之宝', unlock: 'shanjing', fx: { stone: 1.2 } },
-  bushi:      { title: '卜者', desc: '观星占卜，明晓天机', unlock: 'lifa', fx: { xueshi: 0.175 } },
+  bushi:      { title: '卜者', desc: '观星占卜，明晓天机（对齐猫国祭司 0.035/天）', unlock: 'lifa', fx: { xueshi: 0.035 } },
   qishi:      { title: '器师', desc: '铸器锻兵，巧夺天工', unlock: 'zhuqijing', fx: { xuantie: 0.3 } },
   jisi:       { title: '祭司', desc: '敬神布道，通神达意', unlock: 'lidian', fx: { xueshi: 2 } }
 };
