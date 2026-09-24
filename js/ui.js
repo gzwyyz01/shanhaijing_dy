@@ -275,14 +275,24 @@ var SHUI = (function () {
     /* 加速开关（正式功能）：×1 ↔ ×2，放重开左边，开启后 1 秒 = 2 天 */
     btn(bx, L.hintTop + 2, bw, bh, App.G.speed > 1 ? '已加速' : '加速', true, toggleSpeed2,
         App.G.speed > 1 ? { stroke: C.jade, color: C.jade } : {});
-    // 提示文本（截断到按钮左侧）：可用宽度 = 总宽 - 按钮行宽 - 左右留白
-    var btnsW = (sidebarAvail ? sbW + gap : 0) + nBtn * bw + (nBtn - 1 + (sidebarAvail ? 1 : 0)) * gap + 10;
+    // 提示文本：按钮行在上、文字在下（不同 y，互不遮挡）→ 文字用整行宽度，超长自动换两行
     var str = hint;
     ctx.font = '12px sans-serif';
-    var maxW = W - btnsW - 12;
-    while (ctx.measureText(str).width > maxW && str.length > 4) str = str.slice(0, -1);
-    if (str !== hint) str = str.slice(0, -1) + '…';
-    text(str, 12, y, 12, color);
+    var maxW = W - 24;
+    var line1 = str, line2 = '';
+    if (ctx.measureText(str).width > maxW) {
+      var t = str;
+      while (t.length > 1 && ctx.measureText(t).width > maxW) t = t.slice(0, -1);
+      line1 = t;
+      line2 = str.slice(t.length);
+      if (ctx.measureText(line2).width > maxW) {
+        var u = line2;
+        while (u.length > 1 && ctx.measureText(u + '…').width > maxW) u = u.slice(0, -1);
+        line2 = u + '…';
+      }
+    }
+    text(line1, 12, L.hintTop + 31, 12, color);
+    if (line2) text(line2, 12, L.hintTop + 44, 12, color);
   }
 
   function drawTabs(L) {
