@@ -275,10 +275,11 @@ var SHUI = (function () {
     /* 加速开关（正式功能）：×1 ↔ ×2，放重开左边，开启后 1 秒 = 2 天 */
     btn(bx, L.hintTop + 2, bw, bh, App.G.speed > 1 ? '已加速' : '加速', true, toggleSpeed2,
         App.G.speed > 1 ? { stroke: C.jade, color: C.jade } : {});
-    // 提示文本（截断到按钮左侧）
+    // 提示文本（截断到按钮左侧）：可用宽度 = 总宽 - 按钮行宽 - 左右留白
+    var btnsW = (sidebarAvail ? sbW + gap : 0) + nBtn * bw + (nBtn - 1 + (sidebarAvail ? 1 : 0)) * gap + 10;
     var str = hint;
     ctx.font = '12px sans-serif';
-    var maxW = W - 24;
+    var maxW = W - btnsW - 12;
     while (ctx.measureText(str).width > maxW && str.length > 4) str = str.slice(0, -1);
     if (str !== hint) str = str.slice(0, -1) + '…';
     text(str, 12, y, 12, color);
