@@ -765,7 +765,7 @@ var SHUI = (function () {
       return '灵禾入不敷出（' + SHCore.fmtRate(rates.linghe) + '）：铺更多灵田，或研《百草经》后派灵农。';
     var maxK = App.getEffect('maxKittens');
     if (maxK <= 0)
-      return '无草庐：精炼攒 250 木料建草庐，族人才会前来定居。';
+      return '无草庐：精炼攒 5 木料建草庐，族人才会前来定居。';
     if (G.kittens >= maxK)
       return '草庐已满（' + G.kittens + '/' + maxK + '），建造更多草庐以容纳新族人。';
     return '灵禾收支为正，族人稳步增长。入冬前囤足灵禾（冬季产出 ×0.25）。';

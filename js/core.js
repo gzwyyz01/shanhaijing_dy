@@ -15,7 +15,7 @@ var DAYS_PER_SEASON = 100;
 var KITTEN_CONSUME = 4.25;    // 原版 0.85/tick ×5 天：0.625 田 6.8 座养 1 人（对齐猫国 6.8 田/猫）；灵农(5/t) 养 1.18 人
 var KITTEN_BIRTH_BASE = 0.05;    // 原版 0.01/tick×5=0.05/s：约 20 天 1 名新生儿（对齐猫国）
 var START_LINGHE = 0;   // 对齐原版：开局灵禾为 0，靠手动采集 + 灵田产出起步
-var STARTER = { lingTian: 0, caolu: 0, kittens: 0 };   // 对齐猫国：开局 0 田，手动采集攒 100 灵禾建第 1 座灵田
+var STARTER = { lingTian: 0, caolu: 0, kittens: 0 };   // 对齐猫国：开局 0 田，手动采集攒 10 灵禾建第 1 座灵田
 
 /* ================= 1. 数据层 data/ ================= */
 var SEASONS = [
@@ -49,7 +49,7 @@ var BLD_ORDER = ['lingTian', 'caolu', 'muliaoCang', 'linchang', 'cangjingge', 'l
   'julingzhen', 'gongfang', 'dukou', 'huazhai', 'tianjige'];
 var BLD_DEF = {
   lingTian:  { title: '灵田', desc: '开垦沃土，灵禾自生', unlock: 'start', ratio: 1.12, prices: { linghe: 10 }, fx: { linghe: 0.625 } },
-  caolu:     { title: '草庐', desc: '遮风避雨，族人安居（1 座 = 2 人口上限）', unlock: 'wood', ratio: 1.15, prices: { wood: 250 }, fx: { maxKittens: 2 } },
+  caolu:     { title: '草庐', desc: '遮风避雨，族人安居（1 座 = 2 人口上限）', unlock: 'wood', ratio: 1.15, prices: { wood: 5 }, fx: { maxKittens: 2 } },
   muliaoCang:{ title: '木料仓', desc: '贮存木料，以应营造（木料上限 +1000）', unlock: 'wood', ratio: 1.5, prices: { wood: 100 }, fx: { woodMax: 1000 } },
   linchang:  { title: '林场', desc: '入山采伐，林木不绝', unlock: 'lifa', ratio: 1.15, prices: { linghe: 400, wood: 300 }, fx: { wood: 0.5 } },
   cangjingge:{ title: '藏经阁', desc: '藏书之所，学识之源', unlock: 'wood', ratio: 1.15, prices: { wood: 100 }, fx: { xueshi: 0.3, xueshiMax: 25 } },
@@ -423,9 +423,9 @@ function createGame() {
   }
 
   function getMax(res) {
-    if (res === 'linghe') return 100 + getEffect('lingheMax');
+    if (res === 'linghe') return 5000 + getEffect('lingheMax');
     if (res === 'xueshi') return 100 + getEffect('xueshiMax');
-    if (res === 'wood') return 1000 + getEffect('woodMax');
+    if (res === 'wood') return 200 + getEffect('woodMax');
     return Infinity;
   }
 
