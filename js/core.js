@@ -12,8 +12,8 @@ var TPS = 5;
 var DAY_TICKS = 5;           // 1 天 = 5 tick（1 秒）→ 对齐原版节奏（原版约 1 天/秒，一年约 6-7 分钟）
 var TICKS_PER_DAY = 10;
 var DAYS_PER_SEASON = 100;
-var KITTEN_CONSUME = 8.5;     // 原版 0.85/t ×10：灵田(3/t) 3 座养 1 人（对齐原版 3 田养 1 猫）；灵农(10/t) 养 1.18 人
-var KITTEN_BIRTH_BASE = 0.01;    // 原版 0.01/t：约 20 秒 1 名新生儿
+var KITTEN_CONSUME = 4.25;    // 原版 0.85/tick ×5 天：0.625 田 6.8 座养 1 人（对齐猫国 6.8 田/猫）；灵农(5/t) 养 1.18 人
+var KITTEN_BIRTH_BASE = 0.05;    // 原版 0.01/tick×5=0.05/s：约 20 天 1 名新生儿（对齐猫国）
 var START_LINGHE = 0;   // 对齐原版：开局灵禾为 0，靠手动采集 + 灵田产出起步
 var STARTER = { lingTian: 0, caolu: 0, kittens: 0 };   // 对齐猫国：开局 0 田，手动采集攒 100 灵禾建第 1 座灵田
 
@@ -48,12 +48,12 @@ var BLD_ORDER = ['lingTian', 'caolu', 'muliaoCang', 'linchang', 'cangjingge', 'l
   'citang', 'shenmiao', 'ruishouyuan', 'niangfang', 'guanxingtai', 'duanshaoyao', 'lingquanyan', 'jiguangfang',
   'julingzhen', 'gongfang', 'dukou', 'huazhai', 'tianjige'];
 var BLD_DEF = {
-  lingTian:  { title: '灵田', desc: '开垦沃土，灵禾自生', unlock: 'start', ratio: 1.12, prices: { linghe: 100 }, fx: { linghe: 3 } },
-  caolu:     { title: '草庐', desc: '遮风避雨，族人安居（1 座 = 2 人口上限）', unlock: 'wood', ratio: 2.5,  prices: { wood: 50 }, fx: { maxKittens: 2 } },
+  lingTian:  { title: '灵田', desc: '开垦沃土，灵禾自生', unlock: 'start', ratio: 1.12, prices: { linghe: 10 }, fx: { linghe: 0.625 } },
+  caolu:     { title: '草庐', desc: '遮风避雨，族人安居（1 座 = 2 人口上限）', unlock: 'wood', ratio: 1.15, prices: { wood: 250 }, fx: { maxKittens: 2 } },
   muliaoCang:{ title: '木料仓', desc: '贮存木料，以应营造（木料上限 +1000）', unlock: 'wood', ratio: 1.5, prices: { wood: 100 }, fx: { woodMax: 1000 } },
   linchang:  { title: '林场', desc: '入山采伐，林木不绝', unlock: 'lifa', ratio: 1.15, prices: { linghe: 400, wood: 300 }, fx: { wood: 0.5 } },
-  cangjingge:{ title: '藏经阁', desc: '藏书之所，学识之源', unlock: 'wood', ratio: 1.15, prices: { wood: 50 }, fx: { xueshi: 0.2, xueshiMax: 500 } },
-  liangcang: { title: '粮仓', desc: '储粮备荒，以度严冬（灵禾上限 +1500）', unlock: 'wood', ratio: 1.75, prices: { wood: 150 }, fx: { lingheMax: 1500 } },
+  cangjingge:{ title: '藏经阁', desc: '藏书之所，学识之源', unlock: 'wood', ratio: 1.15, prices: { wood: 100 }, fx: { xueshi: 0.3, xueshiMax: 25 } },
+  liangcang: { title: '粮仓', desc: '储粮备荒，以度严冬（灵禾上限 +750）', unlock: 'wood', ratio: 1.75, prices: { wood: 100 }, fx: { lingheMax: 75 } },
   kuangdong: { title: '矿洞', desc: '凿山取石，深掘矿脉', unlock: 'shanjing', ratio: 1.15, prices: { wood: 600, stone: 400 }, fx: { stone: 0.5 } },
   lianqifang:{ title: '炼器坊', desc: '熔炼万物之所', unlock: 'shanjing', ratio: 1.15, prices: { wood: 800, stone: 500 }, fx: {} },
   yelianlu:  { title: '冶炼炉', desc: '烈火熔金，青铜乃成', unlock: 'jinjing', ratio: 1.15, prices: { wood: 1500, stone: 800, bronze: 300 }, fx: { bronze: 0.5 } },
@@ -61,7 +61,7 @@ var BLD_DEF = {
   mawu:      { title: '木屋', desc: '木石为屋，族人安居（1 座 = 4 人口上限）', unlock: 'yingzaojing', ratio: 2.2, prices: { wood: 1000, stone: 500 }, fx: { maxKittens: 4 } },
   shoulan:   { title: '兽栏', desc: '圈养百兽，肉食为继', unlock: 'shoujing', ratio: 1.15, prices: { wood: 600, linghe: 300 }, fx: { linghe: 4 } },
   yinshuiqu: { title: '引水渠', desc: '引水灌田，灵禾倍产', unlock: 'gongjing', ratio: 1.25, prices: { wood: 400, stone: 1200 }, fx: { lingheRatio: 0.5 } },
-  shuyuan:   { title: '书院', desc: '讲学论道，学识日增', unlock: 'suanjing', ratio: 1.15, prices: { wood: 1500, xueshi: 200 }, fx: { xueshi: 0.6, xueshiMax: 800 } },
+  shuyuan:   { title: '书院', desc: '讲学论道，学识日增', unlock: 'suanjing', ratio: 1.15, prices: { wood: 1500, xueshi: 200 }, fx: { xueshi: 0.6, xueshiMax: 40 } },
   baicaoyuan:{ title: '百草园', desc: '遍植百草，药食两用', unlock: 'wenzi', ratio: 1.15, prices: { wood: 1200, linghe: 2500 }, fx: { linghe: 2 } },
   kufang:    { title: '库房', desc: '广积粮秣（木料上限 +5000）', unlock: 'yingzaojing', ratio: 1.5, prices: { wood: 2500 }, fx: { woodMax: 5000 } },
   shiji:     { title: '市集', desc: '互通有无，八方来朝（开启方国贸易）', unlock: 'liyue', ratio: 1.15, prices: { wood: 3500, stone: 1500 }, fx: { tradeSlots: 1 } },
@@ -77,20 +77,20 @@ var BLD_DEF = {
   jiguangfang:{ title: '机关坊', desc: '机关巧思，玄铁成器', unlock: 'jiguanshu', ratio: 1.15, prices: { wood: 6000, xuantie: 500 }, fx: { xuantie: 1 } },
   julingzhen: { title: '聚灵阵', desc: '聚星辉于阵，灵石自生', unlock: 'zhenfa', ratio: 1.15, prices: { bronze: 3000, xinghuishi: 100 }, fx: { xinghuishi: 1 } },
   gongfang:   { title: '工坊', desc: '百工齐备，万业俱兴', unlock: 'gongjing', ratio: 1.15, prices: { wood: 5000, stone: 3000 }, fx: { prodRatio: 0.05 } },
-  dukou:      { title: '渡口', desc: '舟楫往来，货殖通流', unlock: 'hanghaijing', ratio: 1.5, prices: { wood: 8000, stone: 3000 }, fx: { lingheMax: 3000, woodMax: 5000 } },
+  dukou:      { title: '渡口', desc: '舟楫往来，货殖通流', unlock: 'hanghaijing', ratio: 1.5, prices: { wood: 8000, stone: 3000 }, fx: { lingheMax: 150, woodMax: 5000 } },
   huazhai:    { title: '华宅', desc: '雕梁画栋，望族气象（1 座 = 8 人口上限）', unlock: 'lidian', ratio: 2.2, prices: { stone: 2500, bronze: 800 }, fx: { maxKittens: 8 } },
-  tianjige:   { title: '天机阁', desc: '窥天机，得河图洛书', unlock: 'xuanmen', ratio: 1.15, prices: { stone: 20000, xinghuishi: 500, ruishou: 10 }, fx: { hetuluoshu: 0.1, xueshiMax: 5000 } }
+  tianjige:   { title: '天机阁', desc: '窥天机，得河图洛书', unlock: 'xuanmen', ratio: 1.15, prices: { stone: 20000, xinghuishi: 500, ruishou: 10 }, fx: { hetuluoshu: 0.1, xueshiMax: 250 } }
 };
 
 var JOB_ORDER = ['caiyaoren', 'lingnong', 'qiaofu', 'zaoshijiang', 'liehu', 'tanmaishi', 'bushi', 'qishi', 'jisi'];
 var JOB_DEF = {
   caiyaoren:  { title: '采药人', desc: '采撷灵药，聊补粮秣（开局即可分配）', unlock: 'start', fx: { linghe: 0.5 } },
-  lingnong:   { title: '灵农', desc: '耕种灵禾（≈2.3 块灵田，对齐猫国农夫）', unlock: 'baicaojing', fx: { linghe: 7 } },
-  qiaofu:     { title: '樵夫', desc: '入山伐木（需先精炼起家）', unlock: 'lifa', fx: { wood: 0.18 } },
+  lingnong:   { title: '灵农', desc: '耕种灵禾（≈8 块灵田，对齐猫国农夫 +1/tick）', unlock: 'baicaojing', fx: { linghe: 5 } },
+  qiaofu:     { title: '樵夫', desc: '入山伐木（需先精炼起家）', unlock: 'lifa', fx: { wood: 0.09 } },
   zaoshijiang:{ title: '凿石匠', desc: '凿石开山', unlock: 'shanjing', fx: { stone: 0.5 } },
   liehu:      { title: '猎户', desc: '入山狩猎，猎获充饥', unlock: 'shouliejing', fx: { linghe: 3 } },
   tanmaishi:  { title: '探脉师', desc: '循脉探矿，得山中之宝', unlock: 'shanjing', fx: { stone: 1.2 } },
-  bushi:      { title: '卜者', desc: '观星占卜，明晓天机', unlock: 'xingxiangjing', fx: { xueshi: 1 } },
+  bushi:      { title: '卜者', desc: '观星占卜，明晓天机', unlock: 'lifa', fx: { xueshi: 0.175 } },
   qishi:      { title: '器师', desc: '铸器锻兵，巧夺天工', unlock: 'zhuqijing', fx: { xuantie: 0.3 } },
   jisi:       { title: '祭司', desc: '敬神布道，通神达意', unlock: 'lidian', fx: { xueshi: 2 } }
 };
@@ -100,43 +100,43 @@ var TECH_ORDER = ['lifa', 'baicaojing', 'shouliejing', 'shanjing', 'jinjing', 's
   'hanghaijing', 'tiangong', 'yuling', 'danding', 'xuanmen', 'tianji',
   'shangwu', 'chongwen', 'shuntian', 'kaishan', 'qiuzhang', 'zhanglao', 'busuan', 'baijia'];
 var TECH_DEF = {
-  lifa:        { title: '历法', desc: '观天象，知四时', prices: { xueshi: 300 }, req: null },
-  baicaojing:  { title: '百草经', desc: '辨百草，兴稼穑', prices: { xueshi: 1000 }, req: 'lifa' },
-  shouliejing: { title: '狩猎经', desc: '入山林，猎百兽', prices: { xueshi: 3000 }, req: 'baicaojing', fx: { woodRatio: 0.5 } },
-  shanjing:    { title: '山经', desc: '识山岳，知其矿脉', prices: { xueshi: 5000 }, req: 'baicaojing' },
-  jinjing:     { title: '金经', desc: '五金之术，熔炼成器', prices: { xueshi: 9000 }, req: 'shanjing' },
-  suanjing:    { title: '算经', desc: '精于术数，博闻强识', prices: { xueshi: 10000 }, req: 'lifa', fx: { xueshiRatio: 0.5 } },
-  yingzaojing: { title: '营造经', desc: '营室造屋之法', prices: { xueshi: 13000 }, req: 'suanjing' },
-  zhuqijing:   { title: '铸器经', desc: '铸铜炼铁，神器初成', prices: { xueshi: 22000 }, req: ['jinjing', 'yingzaojing'] },
-  shoujing:    { title: '兽经', desc: '识百兽之性', prices: { xueshi: 15000 }, req: 'shanjing' },
-  gongjing:    { title: '工经', desc: '百工之术', prices: { xueshi: 18000 }, req: 'yingzaojing', fx: { prodRatio: 0.1 } },
-  wenzi:       { title: '文字经', desc: '结绳记事，始有文字', prices: { xueshi: 24000 }, req: 'suanjing', fx: { xueshiRatio: 0.25 } },
-  liyue:       { title: '礼乐经', desc: '礼乐教化', prices: { xueshi: 30000 }, req: 'wenzi', fx: { prodRatio: 0.1 } },
-  lidian:      { title: '礼典', desc: '制礼作乐，以安邦国', prices: { xueshi: 40000 }, req: 'liyue', fx: { xueshiRatio: 0.5 } },
-  jiguanshu:   { title: '机关术', desc: '机关巧思', prices: { xueshi: 60000 }, req: 'zhuqijing', fx: { prodRatio: 0.15 } },
-  xuaniejing:  { title: '玄铁经', desc: '玄铁之秘', prices: { xueshi: 45000 }, req: 'zhuqijing' },
-  xingxiangjing:{ title: '星象经', desc: '观星象以知兴替', prices: { xueshi: 80000 }, req: 'lidian' },
-  lianqi:      { title: '炼气经', desc: '炼气化神', prices: { xueshi: 120000 }, req: 'xingxiangjing' },
-  zhenfa:      { title: '阵法', desc: '布阵聚灵', prices: { xueshi: 160000 }, req: 'lianqi' },
-  hanghaijing: { title: '航海经', desc: '乘桴浮海', prices: { xueshi: 220000 }, req: 'zhenfa' },
-  tiangong:    { title: '天工', desc: '巧夺天工', prices: { xueshi: 300000 }, req: 'hanghaijing', fx: { prodRatio: 0.25 } },
-  yuling:      { title: '御灵经', desc: '御灵之术', prices: { xueshi: 400000 }, req: 'tiangong' },
-  danding:     { title: '丹鼎', desc: '丹鼎之术', prices: { xueshi: 600000 }, req: 'yuling' },
-  xuanmen:     { title: '玄门', desc: '玄之又玄', prices: { xueshi: 800000 }, req: 'danding' },
-  tianji:      { title: '天机', desc: '天机不可泄', prices: { xueshi: 1000000 }, req: 'xuanmen' },
-  shangwu:     { title: '尚武', desc: '崇尚武功（与崇文互斥）', prices: { xueshi: 50000 }, req: 'shouliejing', mutex: 'chongwen', fx: { prodRatio: 0.2 } },
-  chongwen:    { title: '崇文', desc: '崇尚文治（与尚武互斥）', prices: { xueshi: 50000 }, req: 'wenzi', mutex: 'shangwu', fx: { xueshiRatio: 1 } },
-  shuntian:    { title: '顺天', desc: '顺天应时（与开山互斥）', prices: { xueshi: 70000 }, req: 'lifa', mutex: 'kaishan', fx: { lingheRatio: 0.5 } },
-  kaishan:     { title: '开山', desc: '开山凿石（与顺天互斥）', prices: { xueshi: 70000 }, req: 'shanjing', mutex: 'shuntian', fx: { stoneRatio: 0.5, bronzeRatio: 0.5 } },
-  qiuzhang:    { title: '酋长制', desc: '族权归一（与长老会互斥）', prices: { xueshi: 90000 }, req: 'lifa', mutex: 'zhanglao', fx: { prodRatio: 0.1 } },
-  zhanglao:    { title: '长老会', desc: '众议共治（与酋长制互斥）', prices: { xueshi: 90000 }, req: 'wenzi', mutex: 'qiuzhang', fx: { xueshiRatio: 0.5 } },
-  busuan:      { title: '卜算治国', desc: '以卜治国（与百家争鸣互斥）', prices: { xueshi: 150000 }, req: 'xingxiangjing', mutex: 'baijia', fx: { xueshi: 0.5 } },
-  baijia:      { title: '百家争鸣', desc: '百花齐放（与卜算治国互斥）', prices: { xueshi: 150000 }, req: 'wenzi', mutex: 'busuan', fx: { xueshiRatio: 1 } }
+  lifa:        { title: '历法', desc: '观天象，知四时', prices: { xueshi: 150 }, req: null },
+  baicaojing:  { title: '百草经', desc: '辨百草，兴稼穑', prices: { xueshi: 250 }, req: 'lifa' },
+  shouliejing: { title: '狩猎经', desc: '入山林，猎百兽', prices: { xueshi: 400 }, req: 'baicaojing', fx: { woodRatio: 0.5 } },
+  shanjing:    { title: '山经', desc: '识山岳，知其矿脉', prices: { xueshi: 750 }, req: 'baicaojing' },
+  jinjing:     { title: '金经', desc: '五金之术，熔炼成器', prices: { xueshi: 1000 }, req: 'shanjing' },
+  suanjing:    { title: '算经', desc: '精于术数，博闻强识', prices: { xueshi: 1500 }, req: 'lifa', fx: { xueshiRatio: 0.5 } },
+  yingzaojing: { title: '营造经', desc: '营室造屋之法', prices: { xueshi: 2000 }, req: 'suanjing' },
+  zhuqijing:   { title: '铸器经', desc: '铸铜炼铁，神器初成', prices: { xueshi: 2500 }, req: ['jinjing', 'yingzaojing'] },
+  shoujing:    { title: '兽经', desc: '识百兽之性', prices: { xueshi: 3000 }, req: 'shanjing' },
+  gongjing:    { title: '工经', desc: '百工之术', prices: { xueshi: 4000 }, req: 'yingzaojing', fx: { prodRatio: 0.1 } },
+  wenzi:       { title: '文字经', desc: '结绳记事，始有文字', prices: { xueshi: 4500 }, req: 'suanjing', fx: { xueshiRatio: 0.25 } },
+  liyue:       { title: '礼乐经', desc: '礼乐教化', prices: { xueshi: 5000 }, req: 'wenzi', fx: { prodRatio: 0.1 } },
+  lidian:      { title: '礼典', desc: '制礼作乐，以安邦国', prices: { xueshi: 7500 }, req: 'liyue', fx: { xueshiRatio: 0.5 } },
+  jiguanshu:   { title: '机关术', desc: '机关巧思', prices: { xueshi: 10000 }, req: 'zhuqijing', fx: { prodRatio: 0.15 } },
+  xuaniejing:  { title: '玄铁经', desc: '玄铁之秘', prices: { xueshi: 12500 }, req: 'zhuqijing' },
+  xingxiangjing:{ title: '星象经', desc: '观星象以知兴替', prices: { xueshi: 15000 }, req: 'lidian' },
+  lianqi:      { title: '炼气经', desc: '炼气化神', prices: { xueshi: 20000 }, req: 'xingxiangjing' },
+  zhenfa:      { title: '阵法', desc: '布阵聚灵', prices: { xueshi: 25000 }, req: 'lianqi' },
+  hanghaijing: { title: '航海经', desc: '乘桴浮海', prices: { xueshi: 30000 }, req: 'zhenfa' },
+  tiangong:    { title: '天工', desc: '巧夺天工', prices: { xueshi: 40000 }, req: 'hanghaijing', fx: { prodRatio: 0.25 } },
+  yuling:      { title: '御灵经', desc: '御灵之术', prices: { xueshi: 50000 }, req: 'tiangong' },
+  danding:     { title: '丹鼎', desc: '丹鼎之术', prices: { xueshi: 60000 }, req: 'yuling' },
+  xuanmen:     { title: '玄门', desc: '玄之又玄', prices: { xueshi: 75000 }, req: 'danding' },
+  tianji:      { title: '天机', desc: '天机不可泄', prices: { xueshi: 100000 }, req: 'xuanmen' },
+  shangwu:     { title: '尚武', desc: '崇尚武功（与崇文互斥）', prices: { xueshi: 25000 }, req: 'shouliejing', mutex: 'chongwen', fx: { prodRatio: 0.2 } },
+  chongwen:    { title: '崇文', desc: '崇尚文治（与尚武互斥）', prices: { xueshi: 25000 }, req: 'wenzi', mutex: 'shangwu', fx: { xueshiRatio: 1 } },
+  shuntian:    { title: '顺天', desc: '顺天应时（与开山互斥）', prices: { xueshi: 35000 }, req: 'lifa', mutex: 'kaishan', fx: { lingheRatio: 0.5 } },
+  kaishan:     { title: '开山', desc: '开山凿石（与顺天互斥）', prices: { xueshi: 35000 }, req: 'shanjing', mutex: 'shuntian', fx: { stoneRatio: 0.5, bronzeRatio: 0.5 } },
+  qiuzhang:    { title: '酋长制', desc: '族权归一（与长老会互斥）', prices: { xueshi: 45000 }, req: 'lifa', mutex: 'zhanglao', fx: { prodRatio: 0.1 } },
+  zhanglao:    { title: '长老会', desc: '众议共治（与酋长制互斥）', prices: { xueshi: 45000 }, req: 'wenzi', mutex: 'qiuzhang', fx: { xueshiRatio: 0.5 } },
+  busuan:      { title: '卜算治国', desc: '以卜治国（与百家争鸣互斥）', prices: { xueshi: 75000 }, req: 'xingxiangjing', mutex: 'baijia', fx: { xueshi: 0.5 } },
+  baijia:      { title: '百家争鸣', desc: '百花齐放（与卜算治国互斥）', prices: { xueshi: 75000 }, req: 'wenzi', mutex: 'busuan', fx: { xueshiRatio: 1 } }
 };
 
 var CRAFT_ORDER = ['wood', 'wuliang', 'shiban', 'tongban', 'xuantie'];
 var CRAFT_DEF = {
-  wood:    { title: '木料', desc: '精炼灵禾为木（100 灵禾 → 10 木料）', unlock: 'start', need: null, prices: { linghe: 100 }, yield: 10 },
+  wood:    { title: '木料', desc: '精炼灵禾为木（100 灵禾 → 1 木料）', unlock: 'start', need: null, prices: { linghe: 100 }, yield: 1 },
   wuliang: { title: '屋梁', desc: '大木成梁', unlock: 'yingzaojing', need: ['lianqifang'], prices: { wood: 1750 } },
   shiban:  { title: '石板', desc: '凿石成板', unlock: 'yingzaojing', need: ['lianqifang'], prices: { stone: 2500 } },
   tongban: { title: '铜板', desc: '青铜锻板', unlock: 'zhuqijing', need: ['lianqifang'], prices: { bronze: 1250 } },
@@ -148,7 +148,7 @@ var EVENT_ORDER = ['dahan', 'tianxiang', 'fengshou', 'shouchao', 'shanben', 'xin
 var EVENT_DEF = {
   dahan:     { title: '大旱', text: '赤地千里，灵禾减产五成（30 天）', season: 1, prob: 0.012, dur: 30, fx: { lingheRatio: -0.5 } },
   tianxiang: { title: '天象异动', text: '紫气东来，灵禾增产五成（30 天）', prob: 0.008, dur: 30, fx: { lingheRatio: 0.5 } },
-  fengshou:  { title: '丰收祭', text: '五谷丰登，灵禾 +1000', prob: 0.01, dur: 0, gain: { linghe: 1000 } },
+  fengshou:  { title: '丰收祭', text: '五谷丰登，灵禾 +100', prob: 0.01, dur: 0, gain: { linghe: 100 } },
   shouchao:  { title: '兽潮', text: '万兽奔涌，木料 +500', prob: 0.008, dur: 0, gain: { wood: 500 } },
   shanben:   { title: '山崩', text: '巨石滚落，石料 +800', prob: 0.008, dur: 0, gain: { stone: 800 } },
   xingyu:    { title: '星雨', text: '陨星坠落，陨铁 +20', prob: 0.004, dur: 0, gain: { xuntie: 20 } }
@@ -160,11 +160,11 @@ var ACH_ORDER = ['kaihuang', 'shennong', 'cangjie', 'suiren', 'yujia', 'yugong',
 var ACH_DEF = {
   kaihuang: { title: '开荒者', desc: '建造 1 座灵田', cond: function (g) { return (g.bld.lingTian || 0) >= 1; } },
   shennong: { title: '神农尝草', desc: '研习 5 项典籍', cond: function (g) { var n = 0, k; for (k in g.techs) if (g.techs[k]) n++; return n >= 5; } },
-  cangjie:  { title: '仓颉造字', desc: '学识达到 1000', cond: function (g) { return (g.res.xueshi || 0) >= 1000; } },
+  cangjie:  { title: '仓颉造字', desc: '学识达到 150', cond: function (g) { return (g.res.xueshi || 0) >= 1000; } },
   suiren:   { title: '燧人取火', desc: '建造冶炼炉', cond: function (g) { return (g.bld.yelianlu || 0) >= 1; } },
   yujia:    { title: '安得广厦', desc: '建造 10 座草庐', cond: function (g) { return (g.bld.caolu || 0) >= 10; } },
   yugong:   { title: '愚公移山', desc: '建造 20 座矿洞', cond: function (g) { return (g.bld.kuangdong || 0) >= 20; } },
-  jingwei:  { title: '精卫填海', desc: '累计采集 10000 灵禾', cond: function (g) { return (g.stat.lingheGathered || 0) >= 10000; } },
+  jingwei:  { title: '精卫填海', desc: '累计采集 1000 灵禾', cond: function (g) { return (g.stat.lingheGathered || 0) >= 10000; } },
   kuafu:    { title: '夸父逐日', desc: '累计点击采集 1000 次', cond: function (g) { return (g.stat.gatherClicks || 0) >= 1000; } },
   zhinv:    { title: '嫘祖养蚕', desc: '族人达到 50', cond: function (g) { return (g.kittens || 0) >= 50; } },
   dayu:     { title: '大禹治水', desc: '建造 10 座引水渠', cond: function (g) { return (g.bld.yinshuiqu || 0) >= 10; } },
@@ -423,8 +423,8 @@ function createGame() {
   }
 
   function getMax(res) {
-    if (res === 'linghe') return 5000 + getEffect('lingheMax');
-    if (res === 'xueshi') return 1000 + getEffect('xueshiMax');
+    if (res === 'linghe') return 100 + getEffect('lingheMax');
+    if (res === 'xueshi') return 100 + getEffect('xueshiMax');
     if (res === 'wood') return 1000 + getEffect('woodMax');
     return Infinity;
   }
@@ -545,9 +545,9 @@ function createGame() {
     var max = getMax('linghe');
     var v = G.res.linghe || 0;
     if (v >= max) return false;
-    G.res.linghe = v + 10;
+    G.res.linghe = v + 1;
     G.stat.gatherClicks = (G.stat.gatherClicks || 0) + 1;
-    G.stat.lingheGathered = (G.stat.lingheGathered || 0) + 10;
+    G.stat.lingheGathered = (G.stat.lingheGathered || 0) + 1;
     return true;
   }
 

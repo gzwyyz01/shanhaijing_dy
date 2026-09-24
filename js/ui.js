@@ -502,21 +502,21 @@ var SHUI = (function () {
     rows.push({ h: 68, draw: function (y) {
       rowPanel(10, y, W - 20, 60);
       text('采集灵禾', 20, y + 10, 14, C.text, 'left', true);
-      text('轻点采集 +10 灵禾', 20, y + 34, 11.5, C.dim);
-      btn(W - 110, y + 28, 96, 26, '采集 +10', true, function () {
-        if (App.gather()) addFloat(W - 62, y + 24, '+10 灵禾', C.gold);
+      text('轻点采集 +1 灵禾', 20, y + 34, 11.5, C.dim);
+      btn(W - 110, y + 28, 96, 26, '采集 +1', true, function () {
+        if (App.gather()) addFloat(W - 62, y + 24, '+1 灵禾', C.gold);
         dirty = true;
       }, { stroke: C.gold, color: C.gold });
     } });
-    // 精炼行（100 灵禾 → 10 木料）：灵田上方常驻
+    // 精炼行（100 灵禾 → 1 木料）：灵田上方常驻
     rows.push({ h: 68, draw: function (y) {
       rowPanel(10, y, W - 20, 60);
       text('精炼木料', 20, y + 10, 14, C.text, 'left', true);
-      text('100 灵禾 → 10 木料', 20, y + 34, 11.5, C.dim);
+      text('100 灵禾 → 1 木料', 20, y + 34, 11.5, C.dim);
       var can = (App.G.res.linghe || 0) >= 100;
       btn(W - 110, y + 28, 96, 26, '精炼', can, function () {
         App.craft('wood');
-        if (can) addFloat(W - 62, y + 24, '+10 木料', C.jade);
+        if (can) addFloat(W - 62, y + 24, '+1 木料', C.jade);
         dirty = true;
       }, {});
     } });
@@ -765,7 +765,7 @@ var SHUI = (function () {
       return '灵禾入不敷出（' + SHCore.fmtRate(rates.linghe) + '）：铺更多灵田，或研《百草经》后派灵农。';
     var maxK = App.getEffect('maxKittens');
     if (maxK <= 0)
-      return '无草庐：精炼攒 50 木料建草庐，族人才会前来定居。';
+      return '无草庐：精炼攒 250 木料建草庐，族人才会前来定居。';
     if (G.kittens >= maxK)
       return '草庐已满（' + G.kittens + '/' + maxK + '），建造更多草庐以容纳新族人。';
     return '灵禾收支为正，族人稳步增长。入冬前囤足灵禾（冬季产出 ×0.25）。';
