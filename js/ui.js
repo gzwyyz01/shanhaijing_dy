@@ -489,7 +489,7 @@ var SHUI = (function () {
       var s = v >= 0 ? '+' : '−';
       s += SHCore.fmt(Math.abs(v));
       if (label === '木料产出' || label === '学识产出' || label === '灵禾产出' || label === '石料产出' || label === '青铜产出' || label === '全部产出') s += '%';
-      else if (!noTickKeys[k]) s += '/t';
+      else if (!noTickKeys[k]) s += '/秒';
       arr.push(s + ' ' + label);
     }
     return arr.join('　');
@@ -586,7 +586,7 @@ var SHUI = (function () {
         var canAdd = assigned < App.G.kittens;      // 无空闲族人不准加人
         var canRemove = n > 0;
         var jfx = [];
-        for (var f in j2.fx) jfx.push('+' + SHCore.fmt(j2.fx[f]) + ' ' + D.RES_DEF[f].title + '/t');
+        for (var f in j2.fx) jfx.push('+' + SHCore.fmt(j2.fx[f]) + ' ' + D.RES_DEF[f].title + '/秒');
         rows.push({ h: 68, draw: function (y) {
           rowPanel(10, y, W - 20, 60);
           text(j2.title, 20, y + 9, 14, C.text, 'left', true);

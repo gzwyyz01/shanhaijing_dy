@@ -222,7 +222,7 @@ function sig3(x) {
 }
 function fmtRate(n) {
   if (Math.abs(n) < 0.0005) return '0';
-  return (n >= 0 ? '+' : '−') + fmt(Math.abs(n)) + '/t';
+  return (n >= 0 ? '+' : '−') + fmt(Math.abs(n)) + '/秒';
 }
 
 /* ================= 2.5 存档存储适配（tt / localStorage / 可注入） ================= */
@@ -451,10 +451,11 @@ function createGame() {
 
   function resourcesUpdate() {
     var rates = calcRates();
+    var q = 1 / DAY_TICKS;   // 每 tick 结算日产量的 1/5：总量不变、数字每 0.2 秒平滑跳动
     for (var i = 0; i < RES_ORDER.length; i++) {
       var k = RES_ORDER[i];
       if (!isResUnlocked(k)) continue;
-      var v = (G.res[k] || 0) + (rates[k] || 0);
+      var v = (G.res[k] || 0) + (rates[k] || 0) * q;
       var max = getMax(k);
       if (isFinite(max) && v > max) v = max;
       if (v < 0) v = 0;
@@ -904,10 +905,10 @@ function createGame() {
       eventUpdate();
       updateCaches();
       updateTabUnlocks();
-      // 产出/消耗/生育/饿死每天结算一次（与日期严格同步）：
-      // 1 秒 = 1 天 = 结算一次，对齐猫国 1 tick = 1 天（避免 5 tick/秒 导致增速 5 倍）
+      // 产出/消耗每 tick 平滑结算（每次 1/5 日产量；1 秒内分 5 次跳动，总量不变）
+      resourcesUpdate();
+      // 生育/饿死仍每天结算一次（与日期严格同步，对齐猫国节奏）
       if (G.tick % DAY_TICKS === 0) {
-        resourcesUpdate();
         villageUpdate();
       }
       peakUpdate();
