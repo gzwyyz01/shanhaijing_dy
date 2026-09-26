@@ -116,6 +116,66 @@ http.createServer(function (req, res) {
     res.end(JSON.stringify(out2));
     return;
   }
+  // 云存档 API（微信小游戏端复用；抖音端走平台 KV 不经过此接口）
+  //  - POST   /api/save  body {devId, data:{key:value,...}}  整档覆盖写入
+  //  - GET    /api/save?devId=x  返回 {ok, data:{...}}
+  //  - DELETE /api/save?devId=x  删除该 devId 整档
+  // 说明：容器本地盘在实例重建后可能重置；生产建议挂载持久卷或迁移云数据库
+  if (url === '/api/save') {
+    var SAVE_DIR = path.join(__dirname, 'data', 'saves');
+    if (req.method === 'POST') {
+      var chunks2 = [];
+      req.on('data', function (c) { chunks2.push(c); });
+      req.on('end', function () {
+        var body = {};
+        try { body = JSON.parse(Buffer.concat(chunks2).toString('utf8') || '{}'); } catch (e) { body = {}; }
+        var devId = typeof body.devId === 'string' ? body.devId.slice(0, 64) : '';
+        if (!devId) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ ok: false, error: 'bad request' }));
+          return;
+        }
+        try {
+          if (!fs.existsSync(SAVE_DIR)) fs.mkdirSync(SAVE_DIR, { recursive: true });
+          fs.writeFileSync(path.join(SAVE_DIR, devId + '.json'), JSON.stringify(body.data || {}));
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ ok: false, error: 'write fail' }));
+        }
+      });
+      return;
+    }
+    var m2 = /[?&]devId=([^&]+)/.exec(req.url || '');
+    var dev = m2 ? decodeURIComponent(m2[1]).slice(0, 64) : '';
+    if (req.method === 'DELETE') {
+      if (!dev) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ ok: false, error: 'bad request' }));
+        return;
+      }
+      try { fs.unlinkSync(path.join(SAVE_DIR, dev + '.json')); } catch (e) { /* 不存在也视为成功 */ }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+    if (req.method === 'GET') {
+      if (!dev) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ ok: false, error: 'bad request' }));
+        return;
+      }
+      var data = {};
+      try { data = JSON.parse(fs.readFileSync(path.join(SAVE_DIR, dev + '.json'), 'utf8')) || {}; } catch (e) { data = {}; }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ ok: true, data: data }));
+      return;
+    }
+    res.writeHead(405, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ ok: false, error: 'method not allowed' }));
+    return;
+  }
   var p;
   try {
     p = decodeURIComponent(url);
