@@ -1,6 +1,6 @@
 'use strict';
 /* =====================================================================
- * 《山海经·洪荒开荒》 UI 层 ui.js（Canvas 自绘，抖音小游戏 / 浏览器预览通用）
+ * 《山海开荒模拟》 UI 层 ui.js（Canvas 自绘，抖音小游戏 / 浏览器预览通用）
  *  - 不依赖 DOM，仅使用传入的 Platform 抽象（adapter.js）
  *  - 竖屏布局：Header / 资源条 / 提示条 / 页签 / 可滚动内容区 / 调试条 / 模态框
  *  - 触摸命中 + 内容滚动
@@ -141,7 +141,7 @@ var SHUI = (function () {
     ctx.fillRect(0, L.top, W, L.headerH);
     ctx.fillStyle = C.border;
     ctx.fillRect(0, L.top + L.headerH - 1, W, 1);
-    text('山海经·洪荒开荒', 12, L.top + 8, 16, C.gold, 'left', true);
+    text('山海开荒模拟', 12, L.top + 8, 16, C.gold, 'left', true);
     var G = App.G;
     var s = SHCore.DATA.SEASONS[G.season];
     var modTxt = (App.isTech('lifa') && s.mod !== 1) ? '（灵禾 ×' + s.mod + '）' : '';
@@ -800,7 +800,7 @@ var SHUI = (function () {
       // 浏览器预览：仅展示弹窗说明（不跳转、不发奖）
       modal = {
         title: '抖音首页侧边栏入口奖励',
-        text: '（预览模式提示）在抖音端接入侧边栏复访能力：\n① 点击「去首页侧边栏」\n② 在侧边栏点击「山海经·洪荒开荒」\n③ 返回游戏，立即领奖\n每日可领一次部族礼包。',
+        text: '（预览模式提示）在抖音端接入侧边栏复访能力：\n① 点击「去首页侧边栏」\n② 在侧边栏点击「山海开荒模拟」\n③ 返回游戏，立即领奖\n每日可领一次部族礼包。',
         okText: '知道了',
         cancel: false,
         tall: true
@@ -811,7 +811,7 @@ var SHUI = (function () {
       // 未从侧边栏进入：展示引导 + 去首页侧边栏
       modal = {
         title: '抖音首页侧边栏入口奖励',
-        text: '每日限领一次的部族礼包（灵禾 +' + SIDEBAR_GIFT.linghe + '、木料 +' + SIDEBAR_GIFT.wood + '）！\n① 点击下方「去首页侧边栏」\n② 在侧边栏点击「山海经·洪荒开荒」\n③ 返回游戏，立即领奖',
+        text: '每日限领一次的部族礼包（灵禾 +' + SIDEBAR_GIFT.linghe + '、木料 +' + SIDEBAR_GIFT.wood + '）！\n① 点击下方「去首页侧边栏」\n② 在侧边栏点击「山海开荒模拟」\n③ 返回游戏，立即领奖',
         okText: '去首页侧边栏',
         cancel: true,
         onOk: function () { Platform.navigateToSidebar(); },

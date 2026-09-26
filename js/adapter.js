@@ -1,22 +1,25 @@
 'use strict';
 /* =====================================================================
- * 平台适配层 adapter.js —— 抖音小游戏(tt) 与 浏览器预览 双端统一
+ * 平台适配层 adapter.js —— 抖音小游戏(tt) / 微信小游戏(wx) / 浏览器预览(web) 三端统一
  *  - 抖音端：tt.createCanvas / tt.onTouch* / tt.getSystemInfoSync / tt.requestAnimationFrame
+ *  - 微信端：wx.createCanvas / wx.onTouch* / wx.getSystemInfoSync（无 rAF，setTimeout 兜底）
  *  - 浏览器端：document.createElement('canvas') / mouse+touch 事件（供 preview.html 本地验证）
- * 同一份 ui.js 在两端运行，无需改动。
+ * 同一份 ui.js 在三端运行，无需改动。
+ * 平台差异点：侧边栏复访（仅抖音）、云存档 KV（抖音平台 KV / 微信复用自建后端 /api/save）
  * ===================================================================== */
 
-var hasTT = typeof tt !== 'undefined';
+var PLAT = (typeof tt !== 'undefined') ? 'tt' : ((typeof wx !== 'undefined') ? 'wx' : 'web');
 
 function createCanvas() {
-  if (hasTT) return tt.createCanvas();
+  if (PLAT === 'tt') return tt.createCanvas();
+  if (PLAT === 'wx') return wx.createCanvas();
   var c = document.createElement('canvas');
   return c;
 }
 
 function getInfo() {
-  if (hasTT) {
-    var s = tt.getSystemInfoSync();
+  if (PLAT === 'tt' || PLAT === 'wx') {
+    var s = (PLAT === 'tt' ? tt : wx).getSystemInfoSync();
     // 顶部安全区：safeArea.top 优先，模拟器可能返回 0 → 用 statusBarHeight 兜底（iOS 灵动岛 ≈59）
     var safeTop = 0;
     var safeBottom = 0;
@@ -43,8 +46,8 @@ function getInfo() {
 }
 
 function raf(cb) {
-  if (hasTT && tt.requestAnimationFrame) return tt.requestAnimationFrame(cb);
-  // 浏览器预览端：setTimeout 兜底（后台标签页 rAF 会被浏览器挂起，导致预览白屏）
+  if (PLAT === 'tt' && tt.requestAnimationFrame) return tt.requestAnimationFrame(cb);
+  // 微信小游戏无全局 requestAnimationFrame；浏览器预览端 setTimeout 兜底（后台标签页 rAF 会被挂起）
   return setTimeout(cb, 1000 / 60);
 }
 
@@ -53,8 +56,10 @@ function raf(cb) {
    用 lastTouch 时间窗忽略触摸后 400ms 内的合成鼠标事件，避免双击。 */
 var __lastTouch = 0;
 function __isSynthMouse() { return Date.now() - __lastTouch < 400; }
+function __hostTouch() { return PLAT === 'tt' ? tt : (PLAT === 'wx' ? wx : null); }
 function onTouchStart(cb) {
-  if (hasTT) { tt.onTouchStart(function (e) { if (e && e.touches && e.touches[0]) cb({ x: e.touches[0].clientX, y: e.touches[0].clientY }); }); return; }
+  var h = __hostTouch();
+  if (h) { h.onTouchStart(function (e) { if (e && e.touches && e.touches[0]) cb({ x: e.touches[0].clientX, y: e.touches[0].clientY }); }); return; }
   var c = document.querySelector('canvas');
   if (!c) return;
   c.addEventListener('mousedown', function (e) { if (!__isSynthMouse()) cb({ x: e.offsetX, y: e.offsetY }); });
@@ -64,7 +69,8 @@ function onTouchStart(cb) {
   });
 }
 function onTouchMove(cb) {
-  if (hasTT) { tt.onTouchMove(function (e) { if (e && e.touches && e.touches[0]) cb({ x: e.touches[0].clientX, y: e.touches[0].clientY }); }); return; }
+  var h = __hostTouch();
+  if (h) { h.onTouchMove(function (e) { if (e && e.touches && e.touches[0]) cb({ x: e.touches[0].clientX, y: e.touches[0].clientY }); }); return; }
   var c = document.querySelector('canvas');
   if (!c) return;
   c.addEventListener('mousemove', function (e) { if (!__isSynthMouse()) cb({ x: e.offsetX, y: e.offsetY }); });
@@ -74,7 +80,8 @@ function onTouchMove(cb) {
   });
 }
 function onTouchEnd(cb) {
-  if (hasTT) { tt.onTouchEnd(function (e) { cb(); }); return; }
+  var h = __hostTouch();
+  if (h) { h.onTouchEnd(function () { cb(); }); return; }
   var c = document.querySelector('canvas');
   if (!c) return;
   c.addEventListener('mouseup', function () { if (!__isSynthMouse()) cb(); });
@@ -82,33 +89,38 @@ function onTouchEnd(cb) {
 }
 
 function showToast(title) {
-  if (hasTT) { try { tt.showToast({ title: title, duration: 1500 }); } catch (e) { /* ignore */ } return; }
+  var h = __hostTouch();
+  if (h) { try { h.showToast({ title: title, duration: 1500 }); } catch (e) { /* ignore */ } return; }
   if (typeof alert === 'function') alert(title);
 }
 
-/* 分享（抖音端由用户主动触发时才可调用） */
+/* 分享（宿主端由用户主动触发时才可调用） */
 function share(opts) {
-  if (!hasTT) { if (typeof alert === 'function') alert('（预览模式）分享：' + (opts && opts.title)); return; }
+  var h = __hostTouch();
+  if (!h) { if (typeof alert === 'function') alert('（预览模式）分享：' + (opts && opts.title)); return; }
   try {
-    tt.shareAppMessage({ title: (opts && opts.title) || '山海经·洪荒开荒：从洪荒到盛世，你说了算！', desc: (opts && opts.desc) || '', success: function () {}, fail: function () {} });
+    h.shareAppMessage({ title: (opts && opts.title) || '山海开荒模拟：从洪荒到盛世，你说了算！', desc: (opts && opts.desc) || '', success: function () {}, fail: function () {} });
   } catch (e) { /* ignore */ }
 }
 
 function vibrate() {
-  if (hasTT) { try { tt.vibrateShort({}); } catch (e) { /* ignore */ } }
+  var h = __hostTouch();
+  if (h) { try { h.vibrateShort({}); } catch (e) { /* ignore */ } }
 }
 
 function onShow(cb) {
-  if (hasTT) tt.onShow(cb);
+  var h = __hostTouch();
+  if (h) h.onShow(cb);
   else if (typeof document !== 'undefined') document.addEventListener('visibilitychange', function () { if (!document.hidden) cb(); });
 }
 function onHide(cb) {
-  if (hasTT) tt.onHide(cb);
+  var h = __hostTouch();
+  if (h) h.onHide(cb);
   else if (typeof document !== 'undefined') document.addEventListener('visibilitychange', function () { if (document.hidden) cb(); });
 }
 
 /* =====================================================================
- * 侧边栏复访能力（抖音小游戏「必接」能力）
+ * 侧边栏复访能力（抖音小游戏「必接」能力；微信端无此能力，全部降级）
  *  - initSidebar：必须在 game.js 启动时机调用（过早监听 tt.onShow，否则
  *    用户从侧边栏热启动回游戏时收不到回调，导致无法领奖）
  *  - 侧边栏场景值：抖音 021036（首页侧边栏-最近使用/常用小程序）、021012；
@@ -119,7 +131,7 @@ var SIDEBAR_SCENES = ['021036', '021012', '101036'];
 var _lastShow = null;
 
 function initSidebar() {
-  if (!hasTT) return;
+  if (PLAT !== 'tt') return;
   try {
     // 官方要求：尽可能提前监听（game.js 运行时机），且判断是否从侧边栏启动
     // 必须使用 tt.onShow 的最新返回值
@@ -140,7 +152,7 @@ function isFromSidebar() {
   return _isSidebarScene(_lastShow && _lastShow.scene);
 }
 function checkSidebar(cb) {
-  if (!hasTT) { if (cb) cb({ isExist: false }); return; }
+  if (PLAT !== 'tt') { if (cb) cb({ isExist: false }); return; }
   try {
     tt.checkScene({
       scene: 'sidebar',
@@ -150,7 +162,7 @@ function checkSidebar(cb) {
   } catch (e) { if (cb) cb({ isExist: false }); }
 }
 function navigateToSidebar() {
-  if (!hasTT) return;
+  if (PLAT !== 'tt') return;
   try {
     tt.navigateToScene({
       scene: 'sidebar',
@@ -160,30 +172,40 @@ function navigateToSidebar() {
   } catch (e) { /* ignore */ }
 }
 
-/* 通用本地存储（每日礼包状态等；tt / localStorage 双端） */
+/* 通用本地存储（每日礼包状态等；tt / wx / localStorage 三端） */
+function __hostStorage() {
+  var h = __hostTouch();
+  return (h && h.getStorageSync) ? h : null;
+}
 function storageGet(k) {
-  if (hasTT) { try { return tt.getStorageSync(k); } catch (e) { return null; } }
+  var h = __hostStorage();
+  if (h) { try { return h.getStorageSync(k); } catch (e) { return null; } }
   if (typeof localStorage !== 'undefined') { try { return localStorage.getItem(k); } catch (e) { return null; } }
   return null;
 }
 function storageSet(k, v) {
-  if (hasTT) { try { tt.setStorageSync(k, v); } catch (e) { /* ignore */ } return; }
+  var h = __hostStorage();
+  if (h) { try { h.setStorageSync(k, v); } catch (e) { /* ignore */ } return; }
   if (typeof localStorage !== 'undefined') { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
 }
 
 /* =====================================================================
- * 排行榜网络请求（tt.request / fetch 双端）与匿名设备标识
- * 注意：抖音端 tt.request 必须使用完整 https URL（相对路径会直接失败，
+ * 排行榜网络请求（tt.request / wx.request / fetch 三端）与匿名设备标识
+ * 注意：tt/wx 端 request 必须使用完整 https URL（相对路径会直接失败，
  * 显示「网络异常」）；浏览器端 fetch 会自动拼接当前域名。故统一在此
  * 将相对路径拼到 RANK_BASE_URL 上。
+ * 微信端正式上线前，需在微信公众平台「开发-开发设置-服务器域名」
+ * 将 RANK_BASE_URL 加入 request 合法域名；开发期可在开发者工具
+ * 「详情-本地设置」勾选「不校验合法域名」。
  * ===================================================================== */
 var RANK_BASE_URL = 'https://1mettiuvm1b1l-env-zlfz29hqoi.service.douyincloud.run';
 function httpJson(url, method, body) {
   var full = (/^https?:\/\//i.test(url)) ? url : RANK_BASE_URL + url;
-  if (hasTT) {
+  var h = __hostTouch();
+  if (h && h.request) {
     return new Promise(function (resolve, reject) {
       try {
-        tt.request({
+        h.request({
           url: full,
           method: method || 'GET',
           data: body || undefined,
@@ -212,22 +234,26 @@ function getDeviceId() {
 }
 
 /* =====================================================================
- * 激励视频广告（重开存档入口）——抖音端真实广告，浏览器预览模拟
+ * 激励视频广告（重开存档入口）——抖音/微信真实广告，浏览器预览模拟
  * REWARD_AD_UNIT：在抖音开放平台「流量主」创建激励视频广告位后填入；
- * 未创建时留空，tt 端 show() 会 fail → 视为未完整观看（不发放）。
+ * 微信端填 REWARD_AD_UNIT_WX（微信公众平台「流量主-广告位管理」创建）。
+ * 未创建时留空，宿主端 show() 会 fail → 视为未完整观看（不发放）。
  * ===================================================================== */
-var REWARD_AD_UNIT = '';   // TODO: 替换为抖音开放平台创建的激励视频广告位 ID
+var REWARD_AD_UNIT = '';      // 抖音：流量主激励视频广告位 ID
+var REWARD_AD_UNIT_WX = '';   // 微信：流量主激励视频广告位 ID
 var _rvAd = null;
 function showRewardedAd(opts) {
   var onDone = opts && opts.onDone;
-  if (!hasTT) {
+  var h = __hostTouch();
+  if (!h) {
     // 浏览器预览：模拟 1.2 秒广告后视为完整观看
     if (onDone) setTimeout(function () { onDone(true); }, 1200);
     return;
   }
+  var unit = (PLAT === 'wx') ? REWARD_AD_UNIT_WX : REWARD_AD_UNIT;
   try {
     if (!_rvAd) {
-      _rvAd = tt.createRewardedVideoAd({ adUnitId: REWARD_AD_UNIT });
+      _rvAd = h.createRewardedVideoAd({ adUnitId: unit });
       _rvAd.onClose(function (res) { if (onDone) onDone(!!(res && res.isEnded)); });
       _rvAd.onError(function () { if (onDone) onDone(false); });
     }
@@ -239,22 +265,24 @@ function showRewardedAd(opts) {
 
 /* =====================================================================
  * Banner 广告（日志 / 排行榜面板内展示）
- * BANNER_AD_UNIT：抖音开放平台「流量主」创建 banner 广告位后填入；
- * 未创建时留空，抖音端创建失败自动忽略（不影响游戏运行）。
+ * 抖音填 BANNER_AD_UNIT、微信填 BANNER_AD_UNIT_WX（流量主 banner 广告位）；
+ * 未创建时留空，宿主端创建失败自动忽略（不影响游戏运行）。
  * 浏览器预览端不展示（无原生广告组件）。
  * ===================================================================== */
-var BANNER_AD_UNIT = '';   // TODO: 替换为抖音开放平台创建的 banner 广告位 ID
+var BANNER_AD_UNIT = '';      // 抖音：流量主 banner 广告位 ID
+var BANNER_AD_UNIT_WX = '';   // 微信：流量主 banner 广告位 ID
 var _banner = null;
 function showBanner() {
-  if (!hasTT) return;   // 预览端无原生 banner
+  var h = __hostTouch();
+  if (!h) return;   // 预览端无原生 banner
   if (_banner) { try { _banner.show(); } catch (e) { /* ignore */ } return; }
   try {
-    var s = tt.getSystemInfoSync();
+    var s = h.getSystemInfoSync();
     var bw = s.windowWidth || 320;
     var bh = Math.round(bw * 0.156);   // banner 常见宽高比 ≈ 320:50
     var safeBottom = (s.safeArea && s.screenHeight) ? (s.screenHeight - s.safeArea.bottom) : 0;
-    _banner = tt.createBannerAd({
-      adUnitId: BANNER_AD_UNIT,
+    _banner = h.createBannerAd({
+      adUnitId: (PLAT === 'wx') ? BANNER_AD_UNIT_WX : BANNER_AD_UNIT,
       style: { left: 0, top: (s.windowHeight || 640) - bh - safeBottom, width: bw }
     });
     _banner.onError(function () { /* 广告加载失败静默 */ });
@@ -269,20 +297,33 @@ function hideBanner() {
  * KV 用户云存储（免费云存档方案）
  *  - 抖音端：tt.setUserCloudStorage / tt.getUserCloudStorage /
  *            tt.removeUserCloudStorage（按 openid 维度，跨设备天然同步）
+ *  - 微信端：复用自建后端 /api/save（server.js 按 devId 落盘；上线前
+ *            配置 request 合法域名；跨设备同步后续可接 wx.login 换 openid）
  *  - 浏览器预览端：localStorage 前缀模拟（前缀 CLOUD_KV_PREFIX）
- *  - 平台限制：单条 key+value ≤1024 字节；每用户每游戏 ≤128 条；
+ *  - 平台限制（抖音）：单条 key+value ≤1024 字节；每用户每游戏 ≤128 条；
  *    value 必须为 string（core.js 负责分片 ≤950 字节/条）
  * ===================================================================== */
 var CLOUD_KV_PREFIX = 'shj6_';
 function cloudKVWrite(items, cb) {
   // items: [{key, value}]，key 不含前缀
-  if (!hasTT) {
+  var h = __hostTouch();
+  if (!h) {
     try {
       for (var i = 0; i < items.length; i++) {
         localStorage.setItem(CLOUD_KV_PREFIX + items[i].key, String(items[i].value));
       }
     } catch (e) { if (cb) cb(e); return; }
     if (cb) cb(null);
+    return;
+  }
+  if (PLAT === 'wx') {
+    // 微信端：整档对象走后端 /api/save
+    var obj = {};
+    for (var w = 0; w < items.length; w++) obj[CLOUD_KV_PREFIX + items[w].key] = String(items[w].value);
+    httpJson('/api/save', 'POST', { devId: getDeviceId(), data: obj }).then(
+      function () { if (cb) cb(null); },
+      function (e) { if (cb) cb(e); }
+    );
     return;
   }
   try {
@@ -297,7 +338,8 @@ function cloudKVWrite(items, cb) {
 }
 function cloudKVRead(keys, cb) {
   // keys: 不含前缀；返回 {key: value}
-  if (!hasTT) {
+  var h = __hostTouch();
+  if (!h) {
     var out = {};
     try {
       for (var i = 0; i < keys.length; i++) {
@@ -306,6 +348,21 @@ function cloudKVRead(keys, cb) {
       }
     } catch (e) { if (cb) cb(e); return; }
     if (cb) cb(null, out);
+    return;
+  }
+  if (PLAT === 'wx') {
+    httpJson('/api/save?devId=' + encodeURIComponent(getDeviceId()), 'GET').then(
+      function (r) {
+        var o = {};
+        if (r && r.data) {
+          for (var k in r.data) {
+            if (k.indexOf(CLOUD_KV_PREFIX) === 0) o[k.slice(CLOUD_KV_PREFIX.length)] = r.data[k];
+          }
+        }
+        if (cb) cb(null, o);
+      },
+      function (e) { if (cb) cb(e); }
+    );
     return;
   }
   try {
@@ -330,11 +387,20 @@ function cloudKVRead(keys, cb) {
   } catch (e) { if (cb) cb(e); }
 }
 function cloudKVRemove(keys, cb) {
-  if (!hasTT) {
+  var h = __hostTouch();
+  if (!h) {
     try {
       for (var i = 0; i < keys.length; i++) localStorage.removeItem(CLOUD_KV_PREFIX + keys[i]);
     } catch (e) { if (cb) cb(e); return; }
     if (cb) cb(null);
+    return;
+  }
+  if (PLAT === 'wx') {
+    // 微信端：删除整个 devId 存档
+    httpJson('/api/save?devId=' + encodeURIComponent(getDeviceId()), 'DELETE').then(
+      function () { if (cb) cb(null); },
+      function (e) { if (cb) cb(e); }
+    );
     return;
   }
   try {
@@ -349,7 +415,9 @@ function cloudKVRemove(keys, cb) {
 }
 
 var SHPlatform = {
-  isTT: hasTT,
+  PLAT: PLAT,
+  isTT: PLAT === 'tt',
+  isWX: PLAT === 'wx',
   createCanvas: createCanvas,
   getInfo: getInfo,
   raf: raf,
@@ -371,9 +439,11 @@ var SHPlatform = {
   getDeviceId: getDeviceId,
   showRewardedAd: showRewardedAd,
   REWARD_AD_UNIT: REWARD_AD_UNIT,
+  REWARD_AD_UNIT_WX: REWARD_AD_UNIT_WX,
   showBanner: showBanner,
   hideBanner: hideBanner,
   BANNER_AD_UNIT: BANNER_AD_UNIT,
+  BANNER_AD_UNIT_WX: BANNER_AD_UNIT_WX,
   cloudKVWrite: cloudKVWrite,
   cloudKVRead: cloudKVRead,
   cloudKVRemove: cloudKVRemove
