@@ -12,7 +12,7 @@ var TPS = 5;
 var DAY_TICKS = 5;           // 1 天 = 5 tick（1 秒）→ 对齐原版节奏（原版约 1 天/秒，一年约 6-7 分钟）
 var TICKS_PER_DAY = 10;
 var DAYS_PER_SEASON = 100;
-var KITTEN_CONSUME = 0.85;    // 对齐猫国 0.85 catnip/tick=每天（我们 1 秒=1 天）：1 猫 1 天耗 0.85
+var KITTEN_CONSUME = 4.25;    // 对齐猫国 4.25 catnip/秒（0.85/tick×5 tick/秒）；我们 1 秒=1 天：1 猫 1 天耗 4.25
 var KITTEN_BIRTH_BASE = 0.05;    // 原版 0.01/tick×5=0.05/s：约 20 天 1 名新生儿（对齐猫国）
 var START_LINGHE = 0;   // 对齐原版：开局灵禾为 0，靠手动采集 + 灵田产出起步
 var STARTER = { lingTian: 0, caolu: 0, kittens: 0 };   // 对齐猫国：开局 0 田，手动采集攒 10 灵禾建第 1 座灵田
@@ -48,7 +48,7 @@ var BLD_ORDER = ['lingTian', 'caolu', 'muliaoCang', 'linchang', 'cangjingge', 'l
   'citang', 'shenmiao', 'ruishouyuan', 'niangfang', 'guanxingtai', 'duanshaoyao', 'lingquanyan', 'jiguangfang',
   'julingzhen', 'gongfang', 'dukou', 'huazhai', 'tianjige'];
 var BLD_DEF = {
-  lingTian:  { title: '灵田', desc: '开垦沃土，灵禾自生', unlock: 'start', ratio: 1.12, prices: { linghe: 10 }, fx: { linghe: 0.125 } },
+  lingTian:  { title: '灵田', desc: '开垦沃土，灵禾自生', unlock: 'start', ratio: 1.12, prices: { linghe: 10 }, fx: { linghe: 0.625 } },
   caolu:     { title: '草庐', desc: '遮风避雨，族人安居（1 座 = 2 人口上限）', unlock: 'wood', ratio: 1.15, prices: { wood: 5 }, fx: { maxKittens: 2 } },
   muliaoCang:{ title: '木料仓', desc: '贮存木料，以应营造（木料上限 +1000）', unlock: 'wood', ratio: 1.5, prices: { wood: 100 }, fx: { woodMax: 1000 } },
   linchang:  { title: '林场', desc: '入山采伐，林木不绝', unlock: 'lifa', ratio: 1.15, prices: { linghe: 400, wood: 300 }, fx: { wood: 0.5 } },
@@ -85,12 +85,12 @@ var BLD_DEF = {
 var JOB_ORDER = ['caiyaoren', 'lingnong', 'qiaofu', 'zaoshijiang', 'liehu', 'tanmaishi', 'bushi', 'qishi', 'jisi'];
 var JOB_DEF = {
   caiyaoren:  { title: '采药人', desc: '采撷灵药，聊补粮秣（开局即可分配）', unlock: 'start', fx: { linghe: 0.5 } },
-  lingnong:   { title: '灵农', desc: '耕种灵禾，五谷丰登（对齐猫国农夫 +1/天）', unlock: 'baicaojing', fx: { linghe: 1.0 } },
-  qiaofu:     { title: '樵夫', desc: '入山伐木（对齐猫国樵夫 0.18/天）', unlock: 'lifa', fx: { wood: 0.18 } },
+  lingnong:   { title: '灵农', desc: '耕种灵禾（对齐猫国农夫 +5/秒，1 农养 1.18 猫）', unlock: 'baicaojing', fx: { linghe: 5 } },
+  qiaofu:     { title: '樵夫', desc: '入山伐木（对齐猫国樵夫 0.18/tick=0.9/秒）', unlock: 'lifa', fx: { wood: 0.9 } },
   zaoshijiang:{ title: '凿石匠', desc: '凿石开山', unlock: 'shanjing', fx: { stone: 0.5 } },
   liehu:      { title: '猎户', desc: '入山狩猎，猎获充饥', unlock: 'shouliejing', fx: { linghe: 3 } },
   tanmaishi:  { title: '探脉师', desc: '循脉探矿，得山中之宝', unlock: 'shanjing', fx: { stone: 1.2 } },
-  bushi:      { title: '卜者', desc: '观星占卜，明晓天机（对齐猫国祭司 0.035/天）', unlock: 'lifa', fx: { xueshi: 0.035 } },
+  bushi:      { title: '卜者', desc: '观星占卜，明晓天机（对齐猫国祭司 0.035/tick=0.175/秒）', unlock: 'lifa', fx: { xueshi: 0.175 } },
   qishi:      { title: '器师', desc: '铸器锻兵，巧夺天工', unlock: 'zhuqijing', fx: { xuantie: 0.3 } },
   jisi:       { title: '祭司', desc: '敬神布道，通神达意', unlock: 'lidian', fx: { xueshi: 2 } }
 };
@@ -246,15 +246,22 @@ function cloudKVRemove(keys, cb) {
   if (typeof SHPlatform !== 'undefined' && SHPlatform.cloudKVRemove) return SHPlatform.cloudKVRemove(keys, cb);
   if (cb) cb({ noAdapter: true });
 }
+function __hostStore() {
+  if (typeof tt !== 'undefined' && tt.getStorageSync) return tt;
+  if (typeof wx !== 'undefined' && wx.getStorageSync) return wx;
+  return null;
+}
 function storageGet(k) {
   if (_storageAdapter) return _storageAdapter.get(k);
-  if (typeof tt !== 'undefined') { try { return tt.getStorageSync(k); } catch (e) { return null; } }
+  var h = __hostStore();
+  if (h) { try { return h.getStorageSync(k); } catch (e) { return null; } }
   if (typeof localStorage !== 'undefined') { try { return localStorage.getItem(k); } catch (e) { return null; } }
   return null;
 }
 function storageSet(k, v) {
   if (_storageAdapter) return _storageAdapter.set(k, v);
-  if (typeof tt !== 'undefined') { try { tt.setStorageSync(k, v); } catch (e) { /* ignore */ } return; }
+  var h = __hostStore();
+  if (h) { try { h.setStorageSync(k, v); } catch (e) { /* ignore */ } return; }
   if (typeof localStorage !== 'undefined') { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
 }
 
@@ -287,9 +294,10 @@ function createGame() {
      删除主存档（保留备份防误操作）+ 重建全新状态，从 0 开荒 */
   function resetAll() {
     if (_storageAdapter && _storageAdapter.del) _storageAdapter.del(SAVE_KEY);
-    if (typeof tt !== 'undefined') { try { tt.removeStorageSync(SAVE_KEY); } catch (e) {} }
+    var __hs = __hostStore();
+    if (__hs) { try { __hs.removeStorageSync(SAVE_KEY); } catch (e) {} }
     if (_storageAdapter && _storageAdapter.del) _storageAdapter.del(SLOTS_KEY);
-    if (typeof tt !== 'undefined') { try { tt.removeStorageSync(SLOTS_KEY); } catch (e) {} }
+    if (__hs) { try { __hs.removeStorageSync(SLOTS_KEY); } catch (e) {} }
     var fresh = newState();
     /* 就地替换：G 对象引用被 App.G 等外部持有，直接重建会丢引用，须清空后回填 */
     for (var k in G) delete G[k];
